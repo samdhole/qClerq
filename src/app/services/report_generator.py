@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections import Counter
 from datetime import date, timedelta
 from typing import Any
@@ -10,6 +11,11 @@ from typing import Any
 import gspread
 
 from app.schemas.invoice import WeeklySummary
+
+logger = logging.getLogger(__name__)
+
+# Sync targets for failure tracking
+_SYNC_TARGETS = ("sheets", "quickbooks", "jobber")
 
 
 def _get_sheets_client(service_account_json: str) -> gspread.Client:
@@ -61,7 +67,7 @@ def _generate_sync(
     total_value = sum(float(r.get("total", 0) or 0) for r in period_rows)
 
     # Sync failures per target
-    sync_failures: dict[str, int] = {"sheets": 0, "quickbooks": 0, "jobber": 0}
+    sync_failures: dict[str, int] = {t: 0 for t in _SYNC_TARGETS}
     for r in period_rows:
         raw = r.get("sync_status", "{}")
         try:
@@ -85,11 +91,14 @@ def _generate_sync(
         exc_in_period = [
             r
             for r in exc_rows
-            if (d := _parse_date(str(r.get("created_at", "")[:10])))
+            if (d := _parse_date(str(r.get("created_at", ""))[:10]))
             and period_start <= d <= period_end
         ]
         exception_rate = len(exc_in_period) / max(invoice_count, 1)
+    except gspread.exceptions.WorksheetNotFound:
+        exception_rate = 0.0
     except Exception:
+        logger.warning("Exceptions tab read failed", exc_info=True)
         exception_rate = 0.0
 
     return WeeklySummary(
