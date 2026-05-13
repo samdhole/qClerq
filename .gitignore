@@ -1,0 +1,34 @@
+# vibecoding / AI session docs — not part of the shipped codebase
+CLAUDE.md
+CONTEXT.md
+**/CONTEXT.md
+*_handoff.md
+*_handoff_*.md
+handoff*.md
+HANDOFF*.md
+
+# common OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Node
+node_modules/
+.next/
+dist/
+
+# env
+.env
+.env.*
+!.env.example
