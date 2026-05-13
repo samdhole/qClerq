@@ -11,7 +11,6 @@ from app.schemas.invoice import InvoiceExtracted
 from app.services import parser_llamaparse, parser_pdfco
 
 _PROMPT_PATH = pathlib.Path(__file__).parent.parent / "prompts" / "invoice_extraction.md"
-_MODEL = CLAUDE_MODEL
 _MAX_TOKENS = 4096
 
 _TOOL_SCHEMA: dict[str, Any] = {
@@ -80,7 +79,7 @@ def extract(
 
     try:
         response = client.messages.create(
-            model=_MODEL,
+            model=CLAUDE_MODEL,
             max_tokens=_MAX_TOKENS,
             system=system_prompt,
             tools=[_TOOL_SCHEMA],

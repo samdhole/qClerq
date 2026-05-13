@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import requests
+import httpx
 
 from app.schemas.invoice import SyncRequest, SyncResult
 
@@ -52,7 +52,7 @@ def _create_expense_sync(req: SyncRequest, access_token: str) -> str:
         "variables": {"input": expense_input},
     }
 
-    resp = requests.post(_JOBBER_GRAPHQL_URL, json=payload, headers=headers, timeout=30)
+    resp = httpx.post(_JOBBER_GRAPHQL_URL, json=payload, headers=headers, timeout=30)
     resp.raise_for_status()
 
     data = resp.json()
