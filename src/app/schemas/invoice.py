@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -65,3 +65,11 @@ class WeeklySummary(BaseModel):
     exception_rate: float
     sync_failures: dict[str, int]
     top_vendors: list[str]
+
+
+class SyncRequest(BaseModel):
+    invoice: InvoiceExtracted
+    approved_by: str
+    approval_notes: str = ""
+    approved_at: datetime
+    approval_tier: Literal["auto", "manager", "cfo"]
