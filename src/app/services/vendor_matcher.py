@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import pathlib
 import threading
 
@@ -55,7 +56,7 @@ def normalize(vendor_raw: str, anthropic_api_key: str = "") -> str:
 
     # Layer 2: fuzzy match using cleanco strip + token_sort_ratio
     stripped_query = _strip_suffix(vendor_raw)
-    canonical_names = list(set(mapping.values()))
+    canonical_names = sorted(set(mapping.values()))
 
     best_score = 0.0
     best_match: str | None = None
@@ -118,5 +119,6 @@ def _llm_resolve(
         )
         result = response.content[0].text.strip()
         return result if result else None
-    except Exception:
+    except Exception as e:
+        logging.warning(f"LLM vendor resolution failed for '{vendor_raw}': {e}")
         return None
