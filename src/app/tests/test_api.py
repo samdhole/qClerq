@@ -120,35 +120,51 @@ class TestApprovalCallbackEndpoint:
         r = client.post("/approval-callback", json=req)
         assert r.status_code == 422
 
-    def test_approval_callback_with_approved_by_returns_501(self, client):
-        """POST /approval-callback with approved_by returns 501 until Phase 6."""
-        req = {
-            "invoice": make_extracted(),
-            "approved_by": "manager@example.com",
-            "approval_notes": "Approved",
-            "approved_at": "2026-05-13T10:00:00Z",
-            "approval_tier": "manager",
-        }
-        r = client.post("/approval-callback", json=req)
-        # Returns 501 until Phase 6 Task 4 implements sync
-        assert r.status_code == 501
+    def test_approval_callback_with_approved_by_calls_sync(self, client):
+        """POST /approval-callback with approved_by calls sync orchestration (AC3.4)."""
+        with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets:
+            mock_sheets.return_value = "1"
+            with patch("app.services.quickbooks_sync.sync") as mock_qb:
+                mock_qb.return_value = MagicMock(qb_bill_id="QB-123", sync_status={"quickbooks": "ok"})
+                with patch("app.services.jobber_sync.sync") as mock_jobber:
+                    mock_jobber.return_value = MagicMock(jobber_expense_id="JOB-456", sync_status={"jobber": "ok"})
+                    req = {
+                        "invoice": make_extracted(),
+                        "approved_by": "manager@example.com",
+                        "approval_notes": "Approved",
+                        "approved_at": "2026-05-13T10:00:00Z",
+                        "approval_tier": "manager",
+                    }
+                    r = client.post("/approval-callback", json=req)
+                    assert r.status_code == 200
+                    assert r.json()["sheets_row_id"] == "1"
 
 
 class TestSyncEndpoint:
     """Test /sync endpoint."""
 
-    def test_sync_returns_501_until_phase6(self, client):
-        """POST /sync returns 501 (Not Implemented) until Phase 6 Task 4."""
-        req = {
-            "invoice": make_extracted(),
-            "approved_by": "manager@example.com",
-            "approval_notes": "Approved",
-            "approved_at": "2026-05-13T10:00:00Z",
-            "approval_tier": "manager",
-        }
-        r = client.post("/sync", json=req)
-        assert r.status_code == 501
-        assert "not yet implemented" in r.json()["detail"].lower()
+    def test_sync_orchestration_success(self, client):
+        """POST /sync runs all three targets with mocked sync modules (AC4.6)."""
+        with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets:
+            mock_sheets.return_value = "2"
+            with patch("app.services.sheets_sync._update_sync_status"):
+                with patch("app.services.quickbooks_sync.sync") as mock_qb:
+                    mock_qb.return_value = MagicMock(qb_bill_id="QB-999", sync_status={"quickbooks": "ok"})
+                    with patch("app.services.jobber_sync.sync") as mock_jobber:
+                        mock_jobber.return_value = MagicMock(jobber_expense_id="JOB-888", sync_status={"jobber": "ok"})
+                        req = {
+                            "invoice": make_extracted(),
+                            "approved_by": "manager@example.com",
+                            "approval_notes": "Approved",
+                            "approved_at": "2026-05-13T10:00:00Z",
+                            "approval_tier": "manager",
+                        }
+                        r = client.post("/sync", json=req)
+                        assert r.status_code == 200
+                        data = r.json()
+                        assert data["sheets_row_id"] == "2"
+                        assert data["qb_bill_id"] == "QB-999"
+                        assert data["jobber_expense_id"] == "JOB-888"
 
 
 class TestExtractEndpoint:
