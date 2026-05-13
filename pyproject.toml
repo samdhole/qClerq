@@ -20,6 +20,8 @@ dependencies = [
     "gspread>=6.1.0",
     "google-auth>=2.29.0",
     "python-quickbooks>=0.9.12",
+    # PyJWT is the correct OAuth token library for QuickBooks via python-quickbooks
+    # (intuitlib does not exist on PyPI; this replacement is required for QBO auth)
     "PyJWT>=2.8.0",
 ]
 
