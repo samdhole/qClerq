@@ -1,66 +1,72 @@
 {
-  "name": "qClerq — AI Invoice Desk",
+  "name": "qClerq \u00e2\u20ac\u201d AI Invoice Desk",
   "nodes": [
-    {
-      "id": "59b4e37b-f52f-415a-bb6f-7a249984ec3a",
-      "name": "Gemini Chat Model",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "position": [3280, 840],
-      "parameters": {
-        "modelName": "gemini-2.5-flash",
-        "options": {}
-      },
-      "credentials": {
-        "googlePalmApi": {
-          "id": "credential-id",
-          "name": "Google Gemini API"
-        }
-      },
-      "typeVersion": 1
-    },
-    {
-      "id": "d9d53795-da16-4921-9c50-a4ce036b564f",
-      "name": "Structured Output Parser",
-      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-      "position": [3500, 840],
-      "parameters": {
-        "jsonSchemaExample": "{\n  \"invoice_number\": \"\",\n  \"invoice_date\": \"\",\n  \"due_date\": \"\",\n  \"vendor_raw\": \"\",\n  \"vendor_normalized\": \"\",\n  \"po_number\": \"\",\n  \"job_id\": \"\",\n  \"customer_or_property\": \"\",\n  \"subtotal\": 0.0,\n  \"tax\": 0.0,\n  \"shipping\": 0.0,\n  \"discount\": 0.0,\n  \"total\": 0.0,\n  \"currency\": \"USD\",\n  \"line_items\": [\n    {\n      \"description\": \"\",\n      \"quantity\": 0,\n      \"unit_price\": 0.0,\n      \"line_total\": 0.0,\n      \"category\": \"\"\n    }\n  ],\n  \"payment_terms\": \"\",\n  \"confidence_overall\": 0.0,\n  \"duplicate_risk\": \"none\",\n  \"missing_required_fields\": [],\n  \"warnings\": []\n}"
-      },
-      "typeVersion": 1.2
-    },
     {
       "id": "69406dc2-fb14-40bd-a24b-5fa28aaa338c",
       "name": "Invoice Folder Monitor",
       "type": "n8n-nodes-base.googleDriveTrigger",
-      "position": [2620, 420],
+      "position": [
+        2620,
+        420
+      ],
       "parameters": {
         "event": "fileCreated",
         "options": {},
-        "pollTimes": { "item": [{ "mode": "everyMinute" }] },
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
         "triggerOn": "specificFolder",
-        "folderToWatch": { "__rl": true, "mode": "id", "value": "REPLACE_WITH_DRIVE_FOLDER_ID" }
+        "folderToWatch": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_DRIVE_FOLDER_ID"
+        }
       },
-      "credentials": { "googleDriveOAuth2Api": { "id": "credential-id", "name": "Google Drive" } },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "credential-id",
+          "name": "Google Drive"
+        }
+      },
       "typeVersion": 1
     },
     {
       "id": "ab3bbd35-7d81-482e-a9f6-242c7b98cd49",
       "name": "Download Invoice PDF",
       "type": "n8n-nodes-base.googleDrive",
-      "position": [2820, 420],
+      "position": [
+        2820,
+        420
+      ],
       "parameters": {
-        "fileId": { "__rl": true, "mode": "id", "value": "={{ $json.id }}" },
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
         "options": {},
         "operation": "download"
       },
-      "credentials": { "googleDriveOAuth2Api": { "id": "credential-id", "name": "Google Drive" } },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "credential-id",
+          "name": "Google Drive"
+        }
+      },
       "typeVersion": 3
     },
     {
       "id": "hash-node-001",
       "name": "Compute File Hash",
       "type": "n8n-nodes-base.code",
-      "position": [3020, 420],
+      "position": [
+        3020,
+        420
+      ],
       "parameters": {
         "jsCode": "const crypto = require('crypto');\nconst binary = $input.first().binary;\nconst key = Object.keys(binary)[0];\nconst buf = Buffer.from(binary[key].data, 'base64');\nconst hash = crypto.createHash('sha256').update(buf).digest('hex');\nreturn [{ json: { ...items[0].json, file_hash: hash, file_name: binary[key].fileName || 'invoice.pdf' }, binary }];"
       },
@@ -70,46 +76,90 @@
       "id": "c2c7545e-344e-480d-8ff7-c14a275460cb",
       "name": "Extract Text from Drive PDF",
       "type": "n8n-nodes-base.extractFromFile",
-      "position": [3220, 420],
-      "parameters": { "options": {}, "operation": "pdf" },
+      "position": [
+        3220,
+        420
+      ],
+      "parameters": {
+        "options": {},
+        "operation": "pdf"
+      },
       "typeVersion": 1
     },
     {
       "id": "2224840e-b38b-4375-9726-4355db099d6c",
       "name": "Monitor Gmail Invoices",
       "type": "n8n-nodes-base.gmailTrigger",
-      "position": [2820, 640],
+      "position": [
+        2820,
+        640
+      ],
       "parameters": {
         "simple": false,
-        "filters": { "q": "has:attachment (invoice OR receipt OR bill) filename:pdf" },
-        "options": { "downloadAttachments": true, "dataPropertyAttachmentsPrefixName": "attachment_" },
-        "pollTimes": { "item": [{ "mode": "everyMinute" }] }
+        "filters": {
+          "q": "has:attachment (invoice OR receipt OR bill) filename:pdf"
+        },
+        "options": {
+          "downloadAttachments": true,
+          "dataPropertyAttachmentsPrefixName": "attachment_"
+        },
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        }
       },
-      "credentials": { "gmailOAuth2": { "id": "credential-id", "name": "Gmail" } },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "credential-id",
+          "name": "Gmail"
+        }
+      },
       "typeVersion": 1.2
     },
     {
       "id": "51b5bedc-ac31-4e31-a854-89d63c8fe410",
       "name": "Extract Text from Email PDF",
       "type": "n8n-nodes-base.extractFromFile",
-      "position": [3020, 640],
-      "parameters": { "options": {}, "operation": "pdf", "binaryPropertyName": "attachment_0" },
+      "position": [
+        3020,
+        640
+      ],
+      "parameters": {
+        "options": {},
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0"
+      },
       "typeVersion": 1
     },
     {
       "id": "f4ff8acd-d3a0-45c4-89eb-5d32c2311cf0",
       "name": "Web Upload Form",
       "type": "n8n-nodes-base.formTrigger",
-      "position": [2820, 840],
+      "position": [
+        2820,
+        840
+      ],
       "webhookId": "e033bea9-70e8-41e2-aea4-1b95714ea257",
       "parameters": {
         "options": {},
-        "formTitle": "Submit Invoice — qClerq",
+        "formTitle": "Submit Invoice \u00e2\u20ac\u201d qClerq",
         "formDescription": "Upload a PDF invoice for processing and approval.",
         "formFields": {
           "values": [
-            { "fieldType": "file", "fieldLabel": "Invoice PDF", "multipleFiles": false, "requiredField": true, "acceptFileTypes": ".pdf" },
-            { "fieldLabel": "Submitted by", "requiredField": true }
+            {
+              "fieldType": "file",
+              "fieldLabel": "Invoice PDF",
+              "multipleFiles": false,
+              "requiredField": true,
+              "acceptFileTypes": ".pdf"
+            },
+            {
+              "fieldLabel": "Submitted by",
+              "requiredField": true
+            }
           ]
         }
       },
@@ -119,37 +169,61 @@
       "id": "aca28461-3f7b-4530-aaec-a61bb402895b",
       "name": "Extract Text from Form PDF",
       "type": "n8n-nodes-base.extractFromFile",
-      "position": [3020, 840],
-      "parameters": { "options": {}, "operation": "pdf", "binaryPropertyName": "Invoice PDF" },
-      "typeVersion": 1
-    },
-    {
-      "id": "fc5a0c82-a1e9-468d-a2a5-0f8e7291f1d9",
-      "name": "Invoice Parser AI Agent",
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "position": [3300, 640],
+      "position": [
+        3020,
+        840
+      ],
       "parameters": {
-        "text": "=You are a precise invoice parser. Extract all fields from the raw invoice text below.\n\n========================\nINVOICE TEXT:\n{{ $json.text }}\n========================\n\nRules:\n- Normalize vendor names (e.g. 'SHERWIN WILLIAMS CO.' → 'Sherwin-Williams')\n- Set confidence_overall 0.0-1.0 based on readability\n- If subtotal+tax+shipping-discount ≠ total (within $0.02), add a warning\n- Set duplicate_risk: none | possible | likely\n- List missing required fields: invoice_number, vendor_raw, total, invoice_date\n- Extract ALL line items with description, quantity, unit_price, line_total, category\n- Categories: materials | labor | software | utilities | rent | unknown\n- Currency default: USD\n\nReturn ONLY valid JSON matching the schema.",
         "options": {},
-        "promptType": "define",
-        "hasOutputParser": true
+        "operation": "pdf",
+        "binaryPropertyName": "Invoice PDF"
       },
-      "typeVersion": 1.9
+      "typeVersion": 1
     },
     {
       "id": "exception-node-001",
       "name": "Route Exceptions",
       "type": "n8n-nodes-base.if",
-      "position": [3500, 640],
+      "position": [
+        3500,
+        640
+      ],
       "parameters": {
         "options": {},
         "conditions": {
-          "options": { "version": 2, "caseSensitive": true, "typeValidation": "strict" },
+          "options": {
+            "version": 2,
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
           "combinator": "or",
           "conditions": [
-            { "id": "exc-1", "operator": { "type": "number", "operation": "lt" }, "leftValue": "={{ $json.output.confidence_overall }}", "rightValue": 0.7 },
-            { "id": "exc-2", "operator": { "type": "string", "operation": "notEquals" }, "leftValue": "={{ $json.output.duplicate_risk }}", "rightValue": "none" },
-            { "id": "exc-3", "operator": { "type": "array", "operation": "notEmpty" }, "leftValue": "={{ $json.output.missing_required_fields }}" }
+            {
+              "id": "exc-1",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              },
+              "leftValue": "={{ $json.output.confidence_overall }}",
+              "rightValue": 0.7
+            },
+            {
+              "id": "exc-2",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "leftValue": "={{ $json.output.duplicate_risk }}",
+              "rightValue": "none"
+            },
+            {
+              "id": "exc-3",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty"
+              },
+              "leftValue": "={{ $json.output.missing_required_fields }}"
+            }
           ]
         }
       },
@@ -159,7 +233,10 @@
       "id": "exception-sheet-001",
       "name": "Write to Exceptions Sheet",
       "type": "n8n-nodes-base.googleSheets",
-      "position": [3700, 900],
+      "position": [
+        3700,
+        900
+      ],
       "parameters": {
         "columns": {
           "value": {
@@ -173,47 +250,105 @@
         "mappingMode": "defineBelow",
         "matchingColumns": [],
         "operation": "append",
-        "sheetName": { "__rl": true, "mode": "name", "value": "Exceptions" },
-        "documentId": { "__rl": true, "mode": "id", "value": "1Vy7dvq18Jh6CSoNBkNk1YMjN9btXGIsLv5nQdO7i9sY" }
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Exceptions"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1Vy7dvq18Jh6CSoNBkNk1YMjN9btXGIsLv5nQdO7i9sY"
+        }
       },
-      "credentials": { "googleSheetsOAuth2Api": { "id": "credential-id", "name": "Google Sheets" } },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "credential-id",
+          "name": "Google Sheets"
+        }
+      },
       "typeVersion": 4.5
     },
     {
       "id": "0aeca259-2a98-48c3-a892-94bf7eac802a",
       "name": "Send Invoice for Approval",
       "type": "n8n-nodes-base.gmail",
-      "position": [3640, 640],
+      "position": [
+        3640,
+        640
+      ],
       "webhookId": "a23938a4-fc6c-4445-8dee-17e501e92e06",
       "parameters": {
         "sendTo": "REPLACE_WITH_APPROVER_EMAIL",
-        "subject": "=[Action Required] Invoice — {{ $json.output.vendor_normalized || $json.output.vendor_raw }} / {{ $json.output.invoice_number }}",
+        "subject": "=[Action Required] Invoice \u00e2\u20ac\u201d {{ $json.output.vendor_normalized || $json.output.vendor_raw }} / {{ $json.output.invoice_number }}",
         "message": "=New invoice for approval:\n\nVendor: {{ $json.output.vendor_normalized }}\nInvoice #: {{ $json.output.invoice_number }}\nDate: {{ $json.output.invoice_date }}\nTotal: {{ $json.output.currency }} {{ $json.output.total }}\nDuplicate risk: {{ $json.output.duplicate_risk }}\nWarnings: {{ ($json.output.warnings || []).join(', ') || 'none' }}",
         "options": {},
         "operation": "sendAndWait",
         "formFields": {
           "values": [
-            { "fieldType": "dropdown", "fieldLabel": "Approve Invoice?", "fieldOptions": { "values": [{ "option": "Yes" }, { "option": "No" }] }, "requiredField": true },
-            { "fieldLabel": "Reviewed By", "requiredField": true },
-            { "fieldType": "textarea", "fieldLabel": "Approval Notes" }
+            {
+              "fieldType": "dropdown",
+              "fieldLabel": "Approve Invoice?",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Yes"
+                  },
+                  {
+                    "option": "No"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Reviewed By",
+              "requiredField": true
+            },
+            {
+              "fieldType": "textarea",
+              "fieldLabel": "Approval Notes"
+            }
           ]
         },
         "responseType": "customForm"
       },
-      "credentials": { "gmailOAuth2": { "id": "credential-id", "name": "Gmail" } },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "credential-id",
+          "name": "Gmail"
+        }
+      },
       "typeVersion": 2.1
     },
     {
       "id": "189f7e81-1391-4baa-baa1-63419f92cccb",
       "name": "Check Approval Decision",
       "type": "n8n-nodes-base.if",
-      "position": [3900, 640],
+      "position": [
+        3900,
+        640
+      ],
       "parameters": {
         "options": {},
         "conditions": {
-          "options": { "version": 2, "caseSensitive": true, "typeValidation": "strict" },
+          "options": {
+            "version": 2,
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
           "combinator": "and",
-          "conditions": [{ "id": "appr-1", "operator": { "type": "string", "operation": "equals" }, "leftValue": "={{ $json.data['Approve Invoice?'] }}", "rightValue": "Yes" }]
+          "conditions": [
+            {
+              "id": "appr-1",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.data['Approve Invoice?'] }}",
+              "rightValue": "Yes"
+            }
+          ]
         }
       },
       "typeVersion": 2.2
@@ -222,7 +357,10 @@
       "id": "bb0a4401-9feb-4240-a62f-ad90c6c642a1",
       "name": "Write to Invoices Sheet",
       "type": "n8n-nodes-base.googleSheets",
-      "position": [4180, 640],
+      "position": [
+        4180,
+        640
+      ],
       "parameters": {
         "columns": {
           "value": {
@@ -251,81 +389,233 @@
         "mappingMode": "defineBelow",
         "matchingColumns": [],
         "operation": "append",
-        "sheetName": { "__rl": true, "mode": "name", "value": "Invoices" },
-        "documentId": { "__rl": true, "mode": "id", "value": "1Vy7dvq18Jh6CSoNBkNk1YMjN9btXGIsLv5nQdO7i9sY" }
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Invoices"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1Vy7dvq18Jh6CSoNBkNk1YMjN9btXGIsLv5nQdO7i9sY"
+        }
       },
-      "credentials": { "googleSheetsOAuth2Api": { "id": "credential-id", "name": "Google Sheets" } },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "credential-id",
+          "name": "Google Sheets"
+        }
+      },
       "typeVersion": 4.5
     },
     {
       "id": "24d89a38-91cc-429d-af6a-8616d67c1e03",
       "name": "Send Rejection Notification",
       "type": "n8n-nodes-base.gmail",
-      "position": [4040, 900],
+      "position": [
+        4040,
+        900
+      ],
       "parameters": {
         "sendTo": "REPLACE_WITH_FINANCE_EMAIL",
         "subject": "=[Rejected] Invoice from {{ $('Invoice Parser AI Agent').item.json.output.vendor_normalized }}",
         "message": "=Invoice rejected.\n\nVendor: {{ $('Invoice Parser AI Agent').item.json.output.vendor_normalized }}\nInvoice #: {{ $('Invoice Parser AI Agent').item.json.output.invoice_number }}\nTotal: {{ $('Invoice Parser AI Agent').item.json.output.currency }} {{ $('Invoice Parser AI Agent').item.json.output.total }}\n\nReviewed by: {{ $('Send Invoice for Approval').item.json.data['Reviewed By'] }}\nNotes: {{ $('Send Invoice for Approval').item.json.data['Approval Notes'] }}",
-        "options": { "appendAttribution": false },
+        "options": {
+          "appendAttribution": false
+        },
         "emailType": "text"
       },
-      "credentials": { "gmailOAuth2": { "id": "credential-id", "name": "Gmail" } },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "credential-id",
+          "name": "Gmail"
+        }
+      },
       "typeVersion": 2.1
     }
   ],
   "connections": {
     "Gemini Chat Model": {
-      "ai_languageModel": [[{ "node": "Invoice Parser AI Agent", "type": "ai_languageModel", "index": 0 }]]
+      "ai_languageModel": [
+        [
+          {
+            "node": "Invoice Parser AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Structured Output Parser": {
-      "ai_outputParser": [[{ "node": "Invoice Parser AI Agent", "type": "ai_outputParser", "index": 0 }]]
+      "ai_outputParser": [
+        [
+          {
+            "node": "Invoice Parser AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Invoice Folder Monitor": {
-      "main": [[{ "node": "Download Invoice PDF", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Download Invoice PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Download Invoice PDF": {
-      "main": [[{ "node": "Compute File Hash", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Compute File Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Compute File Hash": {
-      "main": [[{ "node": "Extract Text from Drive PDF", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Extract Text from Drive PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extract Text from Drive PDF": {
-      "main": [[{ "node": "Invoice Parser AI Agent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Invoice Parser AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Monitor Gmail Invoices": {
-      "main": [[{ "node": "Extract Text from Email PDF", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Extract Text from Email PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extract Text from Email PDF": {
-      "main": [[{ "node": "Invoice Parser AI Agent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Invoice Parser AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Web Upload Form": {
-      "main": [[{ "node": "Extract Text from Form PDF", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Extract Text from Form PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extract Text from Form PDF": {
-      "main": [[{ "node": "Invoice Parser AI Agent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Invoice Parser AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Invoice Parser AI Agent": {
-      "main": [[{ "node": "Route Exceptions", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Route Exceptions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Route Exceptions": {
       "main": [
-        [{ "node": "Send Invoice for Approval", "type": "main", "index": 0 }],
-        [{ "node": "Write to Exceptions Sheet", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send Invoice for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Write to Exceptions Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Send Invoice for Approval": {
-      "main": [[{ "node": "Check Approval Decision", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Check Approval Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Check Approval Decision": {
       "main": [
-        [{ "node": "Write to Invoices Sheet", "type": "main", "index": 0 }],
-        [{ "node": "Send Rejection Notification", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Write to Invoices Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Rejection Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Send Rejection Notification": {
-      "main": [[{ "node": "Write to Invoices Sheet", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Write to Invoices Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
-
