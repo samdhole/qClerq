@@ -145,7 +145,7 @@
       "webhookId": "e033bea9-70e8-41e2-aea4-1b95714ea257",
       "parameters": {
         "options": {},
-        "formTitle": "Submit Invoice  -  qClerq",
+        "formTitle": "Submit Invoice - qClerq",
         "formDescription": "Upload a PDF invoice for processing and approval.",
         "formFields": {
           "values": [
@@ -263,7 +263,7 @@
       "webhookId": "a23938a4-fc6c-4445-8dee-17e501e92e06",
       "parameters": {
         "sendTo": "enigman.kk@gmail.com",
-        "subject": "=[Action Required] Invoice  -  {{ $('Call /extract API').item.json.vendor_normalized || $('Call /extract API').item.json.vendor_raw }} / {{ $('Call /extract API').item.json.invoice_number }}",
+        "subject": "=[Action Required] Invoice - {{ $('Call /extract API').item.json.vendor_normalized || $('Call /extract API').item.json.vendor_raw }} / {{ $('Call /extract API').item.json.invoice_number }}",
         "message": "=New invoice for approval:\n\nVendor: {{ $('Call /extract API').item.json.vendor_normalized }}\nInvoice #: {{ $('Call /extract API').item.json.invoice_number }}\nDate: {{ $('Call /extract API').item.json.invoice_date }}\nTotal: {{ $('Call /extract API').item.json.currency }} {{ $('Call /extract API').item.json.total }}\nDuplicate risk: {{ $('Call /extract API').item.json.duplicate_risk }}\nWarnings: {{ ($('Call /extract API').item.json.warnings || []).join(', ') || 'none' }}",
         "options": {},
         "operation": "sendAndWait",
