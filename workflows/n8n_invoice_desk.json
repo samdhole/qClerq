@@ -1,5 +1,5 @@
 {
-  "name": "qClerq \u00e2\u20ac\u201d AI Invoice Desk",
+  "name": "qClerq â€” AI Invoice Desk",
   "nodes": [
     {
       "id": "69406dc2-fb14-40bd-a24b-5fa28aaa338c",
@@ -23,7 +23,7 @@
         "folderToWatch": {
           "__rl": true,
           "mode": "id",
-          "value": "1a2b3c4d5e6f7g8h9i0j"
+          "value": "={{$env.INVOICE_DRIVE_FOLDER_ID}}"
         }
       },
       "credentials": {
@@ -145,7 +145,7 @@
       "webhookId": "e033bea9-70e8-41e2-aea4-1b95714ea257",
       "parameters": {
         "options": {},
-        "formTitle": "Submit Invoice \u00e2\u20ac\u201d qClerq",
+        "formTitle": "Submit Invoice â€” qClerq",
         "formDescription": "Upload a PDF invoice for processing and approval.",
         "formFields": {
           "values": [
@@ -196,33 +196,16 @@
             "caseSensitive": true,
             "typeValidation": "strict"
           },
-          "combinator": "or",
+          "combinator": "and",
           "conditions": [
             {
-              "id": "exc-1",
+              "id": "exc-clean-check",
               "operator": {
-                "type": "number",
-                "operation": "lt"
+                "type": "boolean",
+                "operation": "equals"
               },
-              "leftValue": "={{ $json.output.confidence_overall }}",
-              "rightValue": 0.7
-            },
-            {
-              "id": "exc-2",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              },
-              "leftValue": "={{ $json.output.duplicate_risk }}",
-              "rightValue": "none"
-            },
-            {
-              "id": "exc-3",
-              "operator": {
-                "type": "array",
-                "operation": "notEmpty"
-              },
-              "leftValue": "={{ $json.output.missing_required_fields }}"
+              "leftValue": "={{$json.is_clean}}",
+              "rightValue": false
             }
           ]
         }
@@ -240,7 +223,7 @@
       "parameters": {
         "columns": {
           "value": {
-            "invoice_id": "={{ $('Invoice Parser AI Agent').item.json.output.invoice_number }}",
+            "invoice_id": "={{$('Call /extract API').item.json.invoice_number}}",
             "issue_type": "={{ $json.output.missing_required_fields.length ? 'missing_fields' : $json.output.duplicate_risk !== 'none' ? 'duplicate_risk' : 'low_confidence' }}",
             "severity": "high",
             "message": "={{ ($json.output.warnings || []).join('; ') || ($json.output.missing_required_fields || []).join(', ') }}",
@@ -280,8 +263,8 @@
       "webhookId": "a23938a4-fc6c-4445-8dee-17e501e92e06",
       "parameters": {
         "sendTo": "enigman.kk@gmail.com",
-        "subject": "=[Action Required] Invoice \u00e2\u20ac\u201d {{ $json.output.vendor_normalized || $json.output.vendor_raw }} / {{ $json.output.invoice_number }}",
-        "message": "=New invoice for approval:\n\nVendor: {{ $json.output.vendor_normalized }}\nInvoice #: {{ $json.output.invoice_number }}\nDate: {{ $json.output.invoice_date }}\nTotal: {{ $json.output.currency }} {{ $json.output.total }}\nDuplicate risk: {{ $json.output.duplicate_risk }}\nWarnings: {{ ($json.output.warnings || []).join(', ') || 'none' }}",
+        "subject": "=[Action Required] Invoice â€” {{ $('Call /extract API').item.json.vendor_normalized || $('Call /extract API').item.json.vendor_raw }} / {{ $('Call /extract API').item.json.invoice_number }}",
+        "message": "=New invoice for approval:\n\nVendor: {{ $('Call /extract API').item.json.vendor_normalized }}\nInvoice #: {{ $('Call /extract API').item.json.invoice_number }}\nDate: {{ $('Call /extract API').item.json.invoice_date }}\nTotal: {{ $('Call /extract API').item.json.currency }} {{ $('Call /extract API').item.json.total }}\nDuplicate risk: {{ $('Call /extract API').item.json.duplicate_risk }}\nWarnings: {{ ($('Call /extract API').item.json.warnings || []).join(', ') || 'none' }}",
         "options": {},
         "operation": "sendAndWait",
         "formFields": {
@@ -418,8 +401,8 @@
       ],
       "parameters": {
         "sendTo": "enigman.kk@gmail.com",
-        "subject": "=[Rejected] Invoice from {{ $('Invoice Parser AI Agent').item.json.output.vendor_normalized }}",
-        "message": "=Invoice rejected.\n\nVendor: {{ $('Invoice Parser AI Agent').item.json.output.vendor_normalized }}\nInvoice #: {{ $('Invoice Parser AI Agent').item.json.output.invoice_number }}\nTotal: {{ $('Invoice Parser AI Agent').item.json.output.currency }} {{ $('Invoice Parser AI Agent').item.json.output.total }}\n\nReviewed by: {{ $('Send Invoice for Approval').item.json.data['Reviewed By'] }}\nNotes: {{ $('Send Invoice for Approval').item.json.data['Approval Notes'] }}",
+        "subject": "=[Rejected] Invoice from {{ $('Call /extract API').item.json.vendor_normalized }}",
+        "message": "=Invoice rejected.\n\nVendor: {{ $('Call /extract API').item.json.vendor_normalized }}\nInvoice #: {{ $('Call /extract API').item.json.invoice_number }}\nTotal: {{ $('Call /extract API').item.json.currency }} {{ $('Call /extract API').item.json.total }}\n\nReviewed by: {{ $('Send Invoice for Approval').item.json.data['Reviewed By'] }}\nNotes: {{ $('Send Invoice for Approval').item.json.data['Approval Notes'] }}",
         "options": {
           "appendAttribution": false
         },
@@ -626,31 +609,36 @@
           ]
         }
       }
+    },
+    {
+      "id": "filter-pdf-form",
+      "name": "Is PDF? (Form)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        400,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$binary['Invoice PDF'].mimeType}}",
+              "rightValue": "application/pdf",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "connections": {
-    "Gemini Chat Model": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Invoice Parser AI Agent",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Structured Output Parser": {
-      "ai_outputParser": [
-        [
-          {
-            "node": "Invoice Parser AI Agent",
-            "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Invoice Folder Monitor": {
       "main": [
         [
@@ -732,18 +720,7 @@
       "main": [
         [
           {
-            "node": "Call /extract API",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Invoice Parser AI Agent": {
-      "main": [
-        [
-          {
-            "node": "Route Exceptions",
+            "node": "Is PDF? (Form)",
             "type": "main",
             "index": 0
           }
@@ -754,14 +731,14 @@
       "main": [
         [
           {
-            "node": "Send Invoice for Approval",
+            "node": "Write to Exceptions Sheet",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Write to Exceptions Sheet",
+            "node": "Route by Approval Tier",
             "type": "main",
             "index": 0
           }
@@ -801,7 +778,7 @@
       "main": [
         [
           {
-            "node": "Write to Invoices Sheet",
+            "node": "Write to Exceptions Sheet",
             "type": "main",
             "index": 0
           }
@@ -823,7 +800,7 @@
       "main": [
         [
           {
-            "node": "Route by Approval Tier",
+            "node": "Route Exceptions",
             "type": "main",
             "index": 0
           }
@@ -860,6 +837,28 @@
         [
           {
             "node": "Download Invoice PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call /approval-callback": {
+      "main": [
+        [
+          {
+            "node": "Call /sync API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is PDF? (Form)": {
+      "main": [
+        [
+          {
+            "node": "Call /extract API",
             "type": "main",
             "index": 0
           }
