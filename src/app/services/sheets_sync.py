@@ -8,9 +8,9 @@ from typing import Any
 
 import gspread
 
-logger = logging.getLogger(__name__)
-
 from app.schemas.invoice import ExceptionItem, InvoiceExtracted, SyncRequest, SyncResult
+
+logger = logging.getLogger(__name__)
 
 _INVOICES_SHEET = "Invoices"
 _EXCEPTIONS_SHEET = "Exceptions"
