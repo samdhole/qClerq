@@ -246,3 +246,54 @@ class TestDateFiltering:
             # Assert - only middle invoice counted
             assert result.invoice_count == 1
             assert result.total_value == 500.0
+
+
+class TestWeeklyReportEndpoint:
+    """Test AC7.1 and AC7.3 via API endpoint."""
+
+    def test_get_report_weekly_endpoint_returns_valid_summary(self, client):
+        """GET /report/weekly returns WeeklySummary JSON."""
+        with patch("app.services.report_generator.generate") as mock_gen:
+            today = date.today()
+            mock_gen.return_value = WeeklySummary(
+                period_start=today - timedelta(days=7),
+                period_end=today - timedelta(days=1),
+                invoice_count=3,
+                total_value=2500.0,
+                exception_rate=0.33,
+                sync_failures={"sheets": 0, "quickbooks": 1, "jobber": 0},
+                top_vendors=["Acme Corp", "Supply Co"],
+            )
+
+            response = client.get("/report/weekly")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["invoice_count"] == 3
+            assert data["total_value"] == 2500.0
+            assert data["exception_rate"] == pytest.approx(0.33, abs=0.01)
+            assert data["sync_failures"]["quickbooks"] == 1
+            assert len(data["top_vendors"]) == 2
+
+    def test_get_report_weekly_endpoint_with_empty_week(self, client):
+        """GET /report/weekly with empty data returns valid zeroed summary."""
+        with patch("app.services.report_generator.generate") as mock_gen:
+            today = date.today()
+            mock_gen.return_value = WeeklySummary(
+                period_start=today - timedelta(days=7),
+                period_end=today - timedelta(days=1),
+                invoice_count=0,
+                total_value=0.0,
+                exception_rate=0.0,
+                sync_failures={"sheets": 0, "quickbooks": 0, "jobber": 0},
+                top_vendors=[],
+            )
+
+            response = client.get("/report/weekly")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["invoice_count"] == 0
+            assert data["total_value"] == 0.0
+            assert data["exception_rate"] == 0.0
+            assert data["top_vendors"] == []
