@@ -1,5 +1,5 @@
 {
-  "name": "qClerq â€” AI Invoice Desk",
+  "name": "qClerq \u00e2\u20ac\u201d AI Invoice Desk",
   "nodes": [
     {
       "id": "69406dc2-fb14-40bd-a24b-5fa28aaa338c",
@@ -145,7 +145,7 @@
       "webhookId": "e033bea9-70e8-41e2-aea4-1b95714ea257",
       "parameters": {
         "options": {},
-        "formTitle": "Submit Invoice â€” qClerq",
+        "formTitle": "Submit Invoice \u00e2\u20ac\u201d qClerq",
         "formDescription": "Upload a PDF invoice for processing and approval.",
         "formFields": {
           "values": [
@@ -263,7 +263,7 @@
       "webhookId": "a23938a4-fc6c-4445-8dee-17e501e92e06",
       "parameters": {
         "sendTo": "enigman.kk@gmail.com",
-        "subject": "=[Action Required] Invoice â€” {{ $('Call /extract API').item.json.vendor_normalized || $('Call /extract API').item.json.vendor_raw }} / {{ $('Call /extract API').item.json.invoice_number }}",
+        "subject": "=[Action Required] Invoice \u00e2\u20ac\u201d {{ $('Call /extract API').item.json.vendor_normalized || $('Call /extract API').item.json.vendor_raw }} / {{ $('Call /extract API').item.json.invoice_number }}",
         "message": "=New invoice for approval:\n\nVendor: {{ $('Call /extract API').item.json.vendor_normalized }}\nInvoice #: {{ $('Call /extract API').item.json.invoice_number }}\nDate: {{ $('Call /extract API').item.json.invoice_date }}\nTotal: {{ $('Call /extract API').item.json.currency }} {{ $('Call /extract API').item.json.total }}\nDuplicate risk: {{ $('Call /extract API').item.json.duplicate_risk }}\nWarnings: {{ ($('Call /extract API').item.json.warnings || []).join(', ') || 'none' }}",
         "options": {},
         "operation": "sendAndWait",
@@ -581,6 +581,128 @@
           ]
         }
       }
+    },
+    {
+      "id": "weekly-report-trigger",
+      "name": "Weekly Report Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        1000
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeklyConfig": {
+                "day": "monday",
+                "hour": 9,
+                "minute": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "call-weekly-report",
+      "name": "Get Weekly Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        1000
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:8000/report/weekly",
+        "options": {}
+      }
+    },
+    {
+      "id": "send-weekly-report-email",
+      "name": "Send Weekly Report Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        500,
+        1000
+      ],
+      "parameters": {
+        "sendTo": "enigman.kk@gmail.com",
+        "subject": "=Weekly Invoice Report \u2014 {{ new Date().toLocaleDateString() }}",
+        "emailType": "text",
+        "message": "=Weekly Invoice Report\n\nPeriod: {{ $json.period_start }} to {{ $json.period_end }}\nInvoices: {{ $json.invoice_count }}\nTotal Value: ${{ $json.total_value.toFixed(2) }}\nException Rate: {{ ($json.exception_rate * 100).toFixed(1) }}%\nSync Failures: {{ JSON.stringify($json.sync_failures) }}\nTop Vendors: {{ $json.top_vendors.join(', ') }}"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "credential-id",
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "id": "weekly-report-trigger",
+      "name": "Weekly Report Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        1100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeklyConfig": {
+                "day": "monday",
+                "hour": 9,
+                "minute": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "call-weekly-report",
+      "name": "Get Weekly Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        1100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:8000/report/weekly",
+        "options": {}
+      }
+    },
+    {
+      "id": "send-weekly-report-email",
+      "name": "Send Weekly Report Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        500,
+        1100
+      ],
+      "parameters": {
+        "sendTo": "enigman.kk@gmail.com",
+        "subject": "=Weekly Invoice Report --- {{ new Date().toLocaleDateString() }}",
+        "emailType": "text",
+        "message": "=Weekly Invoice Report\n\nPeriod: {{ $json.period_start }} to {{ $json.period_end }}\nInvoices: {{ $json.invoice_count }}\nTotal Value: ${{ $json.total_value.toFixed(2) }}\nException Rate: {{ ($json.exception_rate * 100).toFixed(1) }}%\nSync Failures: {{ JSON.stringify($json.sync_failures) }}\nTop Vendors: {{ $json.top_vendors.join(', ') }}"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "credential-id",
+          "name": "Gmail"
+        }
+      }
     }
   ],
   "connections": {
@@ -804,6 +926,28 @@
         [
           {
             "node": "Extract Text from Form PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Report Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Weekly Report": {
+      "main": [
+        [
+          {
+            "node": "Send Weekly Report Email",
             "type": "main",
             "index": 0
           }
