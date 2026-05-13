@@ -375,24 +375,49 @@ class TestVendorNormalization:
             result = normalize("Lowe's Company")
             assert result == "Lowe's"
 
-    def test_ac53_novel_vendor_llm_success(self, vendor_file: pathlib.Path) -> None:
-        """AC5.3: Novel vendor triggers LLM fallback, result promoted to vendors.json."""
+    def test_ac53_novel_vendor_llm_matches_existing_canonical(self, vendor_file: pathlib.Path) -> None:
+        """AC5.3: LLM fallback matches a known canonical and promotes the alias to vendors.json.
+
+        The LLM may only return a name that already exists in the known canonicals list.
+        If it returns something not in the list, the result is discarded (C-2 fix).
+        """
         with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file), \
+             patch("app.services.vendor_matcher._vendor_cache", None), \
              patch("anthropic.Anthropic") as mock_client:
 
             mock_instance = MagicMock()
             mock_client.return_value = mock_instance
             mock_response = MagicMock()
             mock_response.content = [MagicMock()]
-            mock_response.content[0].text = "Novel Vendor Corp"
+            # LLM returns an existing canonical name
+            mock_response.content[0].text = "Acme Corp"
+            mock_instance.messages.create.return_value = mock_response
+
+            result = normalize("AcmeCorporation", anthropic_api_key="test-key")
+
+            assert result == "Acme Corp"
+            # Verify the alias was promoted to vendors.json
+            data = json.loads(vendor_file.read_text(encoding="utf-8"))
+            assert data["AcmeCorporation"] == "Acme Corp"
+
+    def test_ac53_novel_vendor_llm_new_name_falls_back_to_raw(self, vendor_file: pathlib.Path) -> None:
+        """AC5.3: LLM returning a name not in known canonicals is rejected; falls back to raw (C-2)."""
+        with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file), \
+             patch("app.services.vendor_matcher._vendor_cache", None), \
+             patch("anthropic.Anthropic") as mock_client:
+
+            mock_instance = MagicMock()
+            mock_client.return_value = mock_instance
+            mock_response = MagicMock()
+            mock_response.content = [MagicMock()]
+            # LLM tries to create a new canonical — must be rejected
+            mock_response.content[0].text = "Brand New Vendor"
             mock_instance.messages.create.return_value = mock_response
 
             result = normalize("UnknownVendor XYZ", anthropic_api_key="test-key")
 
-            assert result == "Novel Vendor Corp"
-            # Verify it was promoted to vendors.json
-            data = json.loads(vendor_file.read_text(encoding="utf-8"))
-            assert data["UnknownVendor XYZ"] == "Novel Vendor Corp"
+            # Falls back to raw name because LLM result not in known canonicals
+            assert result == "UnknownVendor XYZ"
 
     def test_ac53_llm_called_with_known_canonicals(self, vendor_file: pathlib.Path) -> None:
         """AC5.3: LLM receives the list of known canonical names."""

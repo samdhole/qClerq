@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+import re
+from datetime import date, datetime, timezone
 from typing import Any
 
 import gspread
 
 from app.schemas.invoice import ExceptionItem, InvoiceExtracted, SyncRequest, SyncResult
+from app.services.dedupe import KnownInvoice
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,13 @@ def _get_client(service_account_json: str) -> gspread.Client:
     return gspread.service_account_from_dict(info)
 
 
-def _inv_to_row(req: SyncRequest, qb_bill_id: str | None, jobber_expense_id: str | None, sync_status: dict) -> list[Any]:
+def _inv_to_row(
+    req: SyncRequest,
+    qb_bill_id: str | None,
+    jobber_expense_id: str | None,
+    sync_status: dict,
+    approval_status: str = "approved",
+) -> list[Any]:
     inv = req.invoice
     return [
         inv.file_hash,
@@ -61,7 +69,7 @@ def _inv_to_row(req: SyncRequest, qb_bill_id: str | None, jobber_expense_id: str
         json.dumps(inv.missing_required_fields),
         json.dumps(inv.warnings),
         req.approval_tier,
-        "approved",
+        approval_status,
         req.approved_by,
         req.approval_notes,
         req.approved_at.isoformat(),
@@ -78,16 +86,24 @@ def write_invoice_row(
     jobber_expense_id: str | None,
     sync_status: dict,
     service_account_json: str,
+    approval_status: str = "approved",
 ) -> str:
     gc = _get_client(service_account_json)
     sh = gc.open_by_key(sheet_id)
     ws = sh.worksheet(_INVOICES_SHEET)
-    row = _inv_to_row(req, qb_bill_id, jobber_expense_id, sync_status)
-    assert len(row) == len(INVOICE_COLUMNS), f"Row has {len(row)} values but INVOICE_COLUMNS has {len(INVOICE_COLUMNS)}"
-    ws.append_row(row, value_input_option="USER_ENTERED")
-    all_rows = ws.get_all_values()
-    row_index = len(all_rows)
-    return str(row_index)
+    row = _inv_to_row(req, qb_bill_id, jobber_expense_id, sync_status, approval_status)
+    if len(row) != len(INVOICE_COLUMNS):
+        raise ValueError(
+            f"Row has {len(row)} values but INVOICE_COLUMNS has {len(INVOICE_COLUMNS)}"
+        )
+    result = ws.append_row(row, value_input_option="USER_ENTERED")
+    # Derive row index from the API response to avoid TOCTOU race (H-5)
+    updated_range = result.get("updates", {}).get("updatedRange", "")
+    m = re.search(r":?[A-Z]+(\d+)$", updated_range)
+    if m:
+        return m.group(1)
+    # Fallback: count rows (best-effort, non-concurrent path only)
+    return str(len(ws.get_all_values()))
 
 
 def update_sync_status(sheet_id: str, row_index: int, sync_status: dict, qb_bill_id: str | None, jobber_expense_id: str | None, service_account_json: str) -> None:
@@ -124,22 +140,61 @@ def write_exceptions(sheet_id: str, inv: InvoiceExtracted, exceptions: list[Exce
         ws.append_row(row, value_input_option="USER_ENTERED")
 
 
-def get_known_hashes(sheet_id: str, service_account_json: str) -> set[str]:
-    """Return all file_hash values from the Invoices tab for duplicate detection."""
+def get_known_invoice_data(
+    sheet_id: str,
+    service_account_json: str,
+) -> tuple[set[str], list[KnownInvoice]]:
+    """Return known hashes and invoice tuples for duplicate detection (H-1).
+
+    Returns:
+        (known_hashes, known_invoices) — hashes for exact-file dedupe,
+        invoice tuples for semantic dedupe by vendor+invoice_number and vendor+total+date.
+    """
     gc = _get_client(service_account_json)
     sh = gc.open_by_key(sheet_id)
     ws = sh.worksheet(_INVOICES_SHEET)
-    hash_col = INVOICE_COLUMNS.index("file_hash") + 1
-    values = ws.col_values(hash_col)
-    return {v for v in values[1:] if v}  # skip header row
+    all_rows = ws.get_all_records()
+
+    known_hashes: set[str] = set()
+    known_invoices: list[KnownInvoice] = []
+
+    hash_idx = INVOICE_COLUMNS.index("file_hash")
+    vendor_idx = INVOICE_COLUMNS.index("vendor_normalized")
+    inv_num_idx = INVOICE_COLUMNS.index("invoice_number")
+    total_idx = INVOICE_COLUMNS.index("total")
+    date_idx = INVOICE_COLUMNS.index("invoice_date")
+
+    for row in all_rows:
+        h = str(row.get(INVOICE_COLUMNS[hash_idx], "")).strip()
+        if h:
+            known_hashes.add(h)
+
+        vendor = str(row.get(INVOICE_COLUMNS[vendor_idx], "")).strip()
+        inv_num = str(row.get(INVOICE_COLUMNS[inv_num_idx], "")).strip()
+        try:
+            total = float(row.get(INVOICE_COLUMNS[total_idx], 0) or 0)
+        except (ValueError, TypeError):
+            total = 0.0
+        raw_date = str(row.get(INVOICE_COLUMNS[date_idx], "")).strip()
+        try:
+            inv_date: date | None = date.fromisoformat(raw_date) if raw_date else None
+        except ValueError:
+            inv_date = None
+
+        if vendor:
+            known_invoices.append(KnownInvoice(vendor, inv_num, total, inv_date))
+
+    return known_hashes, known_invoices
+
+
+# Keep old name as alias for any callers not yet updated
+def get_known_hashes(sheet_id: str, service_account_json: str) -> set[str]:
+    hashes, _ = get_known_invoice_data(sheet_id, service_account_json)
+    return hashes
 
 
 async def sync(req: SyncRequest, settings: Any) -> SyncResult:
-    """Write invoice row to Sheets Invoices tab. Returns SyncResult with sheets_row_id.
-
-    This is the public entry point for standalone Sheets sync (mainly for testing).
-    For full multi-target sync, use api.sync_all which orchestrates Sheets + QB + Jobber.
-    """
+    """Write invoice row to Sheets Invoices tab. Returns SyncResult with sheets_row_id."""
     sync_status: dict[str, str] = {}
     row_id: str | None = None
     try:

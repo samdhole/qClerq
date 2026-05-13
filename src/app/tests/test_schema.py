@@ -320,7 +320,7 @@ def test_settings_defaults():
     settings = Settings(_env_file=".env.test")
     assert settings.approval_tier_1_max == 500.0
     assert settings.llama_cloud_api_key == "test-llama-key"
-    assert settings.google_service_account_json == "{}"
+    assert "client_email" in settings.google_service_account_json
 
 
 def test_settings_required_fields():

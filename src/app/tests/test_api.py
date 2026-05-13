@@ -157,7 +157,7 @@ class TestSyncEndpoint:
                             "approved_by": "manager@example.com",
                             "approval_notes": "Approved",
                             "approved_at": "2026-05-13T10:00:00Z",
-                            "approval_tier": "manager",
+                            "approval_tier": "auto",
                         }
                         r = client.post("/sync", json=req)
                         assert r.status_code == 200

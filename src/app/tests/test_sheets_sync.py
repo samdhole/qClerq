@@ -117,7 +117,8 @@ def test_write_invoice_row_includes_file_hash():
         mock_gspread.return_value = mock_client
         mock_client.open_by_key.return_value = mock_sheet
         mock_sheet.worksheet.return_value = mock_ws
-        # After append_row is called, get_all_values returns the updated list (header + 2 data rows)
+        # append_row returns API response with updatedRange used for TOCTOU-safe row index
+        mock_ws.append_row.return_value = {"updates": {"updatedRange": "Invoices!A3:AC3"}}
         mock_ws.get_all_values.return_value = [
             ["file_hash", "file_name", "invoice_number"],
             ["row1", "data1", "inv1"],

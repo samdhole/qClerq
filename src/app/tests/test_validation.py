@@ -215,23 +215,23 @@ class TestDuplicateRisk:
 
     def test_duplicate_risk_none_is_clean(self):
         """duplicate_risk='none' does not produce exception."""
-        inv = make_invoice(duplicate_risk="none")
-        result = validate(inv, TIER1_MAX, TIER2_MAX)
+        inv = make_invoice()
+        result = validate(inv, TIER1_MAX, TIER2_MAX, dedupe_result="none")
         assert not any(e.type == "duplicate_risk" for e in result.exceptions)
 
     def test_duplicate_risk_possible(self):
-        """duplicate_risk='possible' produces medium severity exception."""
-        inv = make_invoice(duplicate_risk="possible")
-        result = validate(inv, TIER1_MAX, TIER2_MAX)
+        """dedupe_result='possible' produces medium severity exception."""
+        inv = make_invoice()
+        result = validate(inv, TIER1_MAX, TIER2_MAX, dedupe_result="possible")
         assert result.is_clean is False
         dup_exceptions = [e for e in result.exceptions if e.type == "duplicate_risk"]
         assert len(dup_exceptions) == 1
         assert dup_exceptions[0].severity == "medium"
 
     def test_duplicate_risk_likely(self):
-        """duplicate_risk='likely' produces high severity exception."""
-        inv = make_invoice(duplicate_risk="likely")
-        result = validate(inv, TIER1_MAX, TIER2_MAX)
+        """dedupe_result='likely' produces high severity exception."""
+        inv = make_invoice()
+        result = validate(inv, TIER1_MAX, TIER2_MAX, dedupe_result="likely")
         assert result.is_clean is False
         dup_exceptions = [e for e in result.exceptions if e.type == "duplicate_risk"]
         assert len(dup_exceptions) == 1

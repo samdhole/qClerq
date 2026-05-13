@@ -9,6 +9,13 @@ from app.main import create_app
 @pytest.fixture(scope="session")
 def test_settings_env(tmp_path_factory):
     env_file = tmp_path_factory.mktemp("env") / ".env.test"
+    svc_account = (
+        '{"type":"service_account","project_id":"test","private_key_id":"key1",'
+        '"private_key":"-----BEGIN RSA PRIVATE KEY-----\\nMIIEowIBAAKCAQEA0Z3VS5JJcds3xHn/ygWep4PAtE\\n-----END RSA PRIVATE KEY-----\\n",'
+        '"client_email":"test@test-project.iam.gserviceaccount.com",'
+        '"client_id":"123","auth_uri":"https://accounts.google.com/o/oauth2/auth",'
+        '"token_uri":"https://oauth2.googleapis.com/token"}'
+    )
     env_file.write_text(
         "APPROVAL_TIER_1_MAX=500.0\n"
         "APPROVAL_TIER_2_MAX=5000.0\n"
@@ -19,13 +26,14 @@ def test_settings_env(tmp_path_factory):
         "LLAMA_CLOUD_API_KEY=test-llama\n"
         "PDFCO_API_KEY=test-pdfco\n"
         "ANTHROPIC_API_KEY=test-anthropic\n"
+        "API_KEY=test-api-key\n"
         "QB_CLIENT_ID=test-qb-id\n"
         "QB_CLIENT_SECRET=test-qb-secret\n"
         "QB_REFRESH_TOKEN=test-refresh\n"
         "QB_REALM_ID=test-realm\n"
-        "QB_DEFAULT_EXPENSE_ACCOUNT_ID=1\n"
+        "QB_DEFAULT_EXPENSE_ACCOUNT_ID=42\n"
         "JOBBER_ACCESS_TOKEN=test-jobber\n"
-        "GOOGLE_SERVICE_ACCOUNT_JSON={}\n"
+        f"GOOGLE_SERVICE_ACCOUNT_JSON={svc_account}\n"
     )
     return str(env_file)
 
@@ -39,5 +47,5 @@ def client(test_settings_env):
 
     app = create_app()
     app.dependency_overrides[get_settings] = override_settings
-    with TestClient(app) as c:
+    with TestClient(app, headers={"X-API-Key": "test-api-key"}) as c:
         yield c

@@ -250,7 +250,7 @@ async def test_sync_all_sheets_row_has_proof_trail_columns(client):
 
                     req_data = make_sync_request(
                         approved_by="manager@test.local",
-                        approval_tier="manager",
+                        approval_tier="auto",
                     )
                     response = client.post("/sync", json=req_data)
 
@@ -261,7 +261,7 @@ async def test_sync_all_sheets_row_has_proof_trail_columns(client):
                     sync_req = call_args[0][1]
 
                     assert sync_req.approved_by == "manager@test.local"
-                    assert sync_req.approval_tier == "manager"
+                    assert sync_req.approval_tier == "auto"
                     assert sync_req.approved_at is not None
 
                     # Verify update_sync_status was called with sync_status

@@ -28,9 +28,10 @@ def _create_bill_sync(req: SyncRequest, settings: Any, account_id: str) -> str:
         minorversion=75,
     )
 
-    # Look up vendor by normalized name
+    # Look up vendor by normalized name — escape single quotes to prevent QBOSQL injection (C-3)
     vendor_name = req.invoice.vendor_normalized
-    vendors = Vendor.where(f"DisplayName = '{vendor_name}'", qb=qb)
+    safe_name = vendor_name.replace("'", "''")
+    vendors = Vendor.where(f"DisplayName = '{safe_name}'", qb=qb)
     if not vendors:
         raise ValueError(f"Vendor '{vendor_name}' not found in QuickBooks")
 
