@@ -113,9 +113,66 @@ async def sync_all(
     req: SyncRequest,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SyncResult:
-    """Run all sync targets. Implementation populated in Phase 6 Task 4."""
-    from app.services import sheets_sync, quickbooks_sync, jobber_sync  # noqa: F401
-    raise HTTPException(status_code=501, detail="Sync not yet implemented — complete Phase 6")
+    """Sync to all three targets. Sheets row written first; backfilled after QB + Jobber."""
+    from app.services import sheets_sync, quickbooks_sync, jobber_sync
+
+    sheets_row_id: str | None = None
+    qb_bill_id: str | None = None
+    jobber_expense_id: str | None = None
+    sync_status: dict[str, str] = {"sheets": "pending", "quickbooks": "pending", "jobber": "pending"}
+
+    # 1. Write Sheets row first — establishes the audit record before any sync attempt.
+    try:
+        sheets_row_id = await asyncio.to_thread(
+            sheets_sync._write_invoice_row,
+            settings.sheet_id,
+            req,
+            None,
+            None,
+            sync_status,
+            settings.google_service_account_json,
+        )
+        sync_status["sheets"] = "ok"
+    except Exception:
+        sync_status["sheets"] = "failed"
+
+    # 2. QB sync — failure does not block Jobber (AC4.4).
+    try:
+        qb_result = await quickbooks_sync.sync(req, settings)
+        qb_bill_id = qb_result.qb_bill_id
+        sync_status["quickbooks"] = qb_result.sync_status.get("quickbooks", "ok")
+    except Exception:
+        sync_status["quickbooks"] = "failed"
+
+    # 3. Jobber sync — failure does not affect QB or Sheets (AC4.5).
+    try:
+        jobber_result = await jobber_sync.sync(req, settings)
+        jobber_expense_id = jobber_result.jobber_expense_id
+        sync_status["jobber"] = jobber_result.sync_status.get("jobber", "ok")
+    except Exception:
+        sync_status["jobber"] = "failed"
+
+    # 4. Backfill Sheets row with final IDs and sync_status (AC4.6, AC6.1).
+    if sheets_row_id is not None:
+        try:
+            await asyncio.to_thread(
+                sheets_sync._update_sync_status,
+                settings.sheet_id,
+                int(sheets_row_id),
+                sync_status,
+                qb_bill_id,
+                jobber_expense_id,
+                settings.google_service_account_json,
+            )
+        except Exception:
+            pass  # best-effort — row already exists, partial data is better than nothing
+
+    return SyncResult(
+        sheets_row_id=sheets_row_id,
+        qb_bill_id=qb_bill_id,
+        jobber_expense_id=jobber_expense_id,
+        sync_status=sync_status,
+    )
 
 
 @router.get("/report/weekly")
