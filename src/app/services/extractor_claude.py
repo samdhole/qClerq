@@ -7,6 +7,7 @@ from typing import Any
 import anthropic
 
 from app.schemas.invoice import InvoiceExtracted
+from app.services import parser_llamaparse, parser_pdfco
 
 _PROMPT_PATH = pathlib.Path(__file__).parent.parent / "prompts" / "invoice_extraction.md"
 # Pinned to Claude Sonnet 4.6 (the correct current model per project environment)
@@ -120,8 +121,6 @@ def parse_and_extract(
 
     Returns None if both parsers fail or extraction fails.
     """
-    from app.services import parser_llamaparse, parser_pdfco
-
     raw_text: str | None = None
 
     try:
