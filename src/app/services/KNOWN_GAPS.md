@@ -47,7 +47,7 @@ Affected code: `src/app/services/vendor_matcher.py` (lines 13, 81-84)
 All LLM calls (extraction and vendor resolution) use `claude-sonnet-4-6`, defined as `CLAUDE_MODEL` in `src/app/config.py`. Model changes should be coordinated across:
 
 1. `src/app/config.py` — update `CLAUDE_MODEL` constant
-2. `src/app/services/extractor_claude.py` — uses `_MODEL = CLAUDE_MODEL`
+2. `src/app/services/extractor_claude.py` — uses `CLAUDE_MODEL` directly at the `client.messages.create` call site
 3. `src/app/services/vendor_matcher.py` — uses `CLAUDE_MODEL` in `_llm_resolve`
 4. Re-run full test suite and validate extraction quality after any model change
 
