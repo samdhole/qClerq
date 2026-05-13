@@ -330,7 +330,7 @@ def test_settings_required_fields():
     assert settings.manager_email is not None
     assert settings.cfo_email is not None
     assert settings.sheet_id is not None
-    assert settings.anthropic_api_key is not None
+    assert settings.gemini_api_key is not None
 
 
 def test_settings_missing_required_field_raises_error():

@@ -18,18 +18,20 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.schemas.invoice import InvoiceExtracted, LineItem
-from app.services.extractor_claude import extract, parse_and_extract
+from app.services.extractor_gemini import extract, parse_and_extract
 from app.services.vendor_matcher import normalize
 
 
-def make_claude_tool_response(data: dict) -> MagicMock:
-    """Create a mocked Claude tool_use response."""
-    block = MagicMock()
-    block.type = "tool_use"
-    block.input = data
+def make_gemini_tool_response(data: dict) -> MagicMock:
+    """Create a mocked Gemini function_call response."""
+    fc = MagicMock()
+    fc.args = data
+    part = MagicMock()
+    part.function_call = fc
+    candidate = MagicMock()
+    candidate.content.parts = [part]
     response = MagicMock()
-    response.stop_reason = "tool_use"
-    response.content = [block]
+    response.candidates = [candidate]
     return response
 
 
@@ -73,10 +75,10 @@ class TestExtract:
 
     def test_ac21_valid_text_returns_invoice_extracted(self) -> None:
         """AC2.1: Valid text returns InvoiceExtracted with all required fields."""
-        with patch("anthropic.Anthropic") as mock_client:
-            mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
-            mock_instance.messages.create.return_value = make_claude_tool_response(
+        with patch("google.genai.Client") as mock_model_cls:
+            mock_client = MagicMock()
+            mock_model_cls.return_value = mock_client
+            mock_client.models.generate_content.return_value = make_gemini_tool_response(
                 make_valid_tool_input()
             )
 
@@ -96,12 +98,12 @@ class TestExtract:
 
     def test_ac22_high_confidence_for_clean_invoice(self) -> None:
         """AC2.2: Clean digital PDF → confidence_overall >= 0.7."""
-        with patch("anthropic.Anthropic") as mock_client:
+        with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
+            mock_model_cls.return_value = mock_instance
             data = make_valid_tool_input()
             data["confidence_overall"] = 0.95
-            mock_instance.messages.create.return_value = make_claude_tool_response(data)
+            mock_instance.models.generate_content.return_value = make_gemini_tool_response(data)
 
             result = extract(
                 raw_text="Clean digital invoice",
@@ -115,12 +117,12 @@ class TestExtract:
 
     def test_ac22_low_confidence_for_poor_quality(self) -> None:
         """AC2.2: Scanned/poor quality → confidence_overall < 0.7."""
-        with patch("anthropic.Anthropic") as mock_client:
+        with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
+            mock_model_cls.return_value = mock_instance
             data = make_valid_tool_input()
             data["confidence_overall"] = 0.4
-            mock_instance.messages.create.return_value = make_claude_tool_response(data)
+            mock_instance.models.generate_content.return_value = make_gemini_tool_response(data)
 
             result = extract(
                 raw_text="Blurry scanned invoice with poor OCR",
@@ -134,10 +136,10 @@ class TestExtract:
 
     def test_extract_returns_none_on_client_exception(self) -> None:
         """extract() returns None on any client exception."""
-        with patch("anthropic.Anthropic") as mock_client:
+        with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
-            mock_instance.messages.create.side_effect = Exception("API error")
+            mock_model_cls.return_value = mock_instance
+            mock_instance.models.generate_content.side_effect = Exception("API error")
 
             result = extract(
                 raw_text="Some invoice text",
@@ -148,15 +150,15 @@ class TestExtract:
 
             assert result is None
 
-    def test_extract_returns_none_on_wrong_stop_reason(self) -> None:
-        """extract() returns None when stop_reason != 'tool_use'."""
-        with patch("anthropic.Anthropic") as mock_client:
+    def test_extract_returns_none_on_missing_function_call(self) -> None:
+        """extract() returns None when response has no function_call block."""
+        with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
+            mock_model_cls.return_value = mock_instance
+            # Response with no candidates → IndexError caught internally
             response = MagicMock()
-            response.stop_reason = "end_turn"
-            response.content = []
-            mock_instance.messages.create.return_value = response
+            response.candidates = []
+            mock_instance.models.generate_content.return_value = response
 
             result = extract(
                 raw_text="Some text",
@@ -167,33 +169,14 @@ class TestExtract:
 
             assert result is None
 
-    def test_extract_returns_none_on_missing_tool_block(self) -> None:
-        """extract() returns None when no tool_use block in response."""
-        with patch("anthropic.Anthropic") as mock_client:
-            mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
-            response = MagicMock()
-            response.stop_reason = "tool_use"
-            response.content = []  # No tool blocks
-            mock_instance.messages.create.return_value = response
-
-            result = extract(
-                raw_text="Some text",
-                file_hash="hash5",
-                file_name="test.pdf",
-                api_key="test-key",
-            )
-
-            assert result is None
-
     def test_extract_returns_none_on_validation_failure(self) -> None:
         """extract() returns None when Pydantic validation fails."""
-        with patch("anthropic.Anthropic") as mock_client:
+        with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
+            mock_model_cls.return_value = mock_instance
             # Missing required fields
             bad_data = {"vendor_raw": "test"}
-            mock_instance.messages.create.return_value = make_claude_tool_response(bad_data)
+            mock_instance.models.generate_content.return_value = make_gemini_tool_response(bad_data)
 
             result = extract(
                 raw_text="Some text",
@@ -210,14 +193,14 @@ class TestParseAndExtract:
 
     def test_ac27_llamaparse_success(self) -> None:
         """AC2.7: On LlamaParse success, extract the result."""
-        with patch("anthropic.Anthropic") as mock_client, \
+        with patch("google.genai.Client") as mock_model_cls, \
              patch("app.services.parser_llamaparse.parse_pdf") as mock_llama, \
              patch("app.services.parser_pdfco.parse_pdf") as mock_pdfco:
 
             mock_llama.return_value = "Invoice for 100 widgets at $100 each"
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
-            mock_instance.messages.create.return_value = make_claude_tool_response(
+            mock_model_cls.return_value = mock_instance
+            mock_instance.models.generate_content.return_value = make_gemini_tool_response(
                 make_valid_tool_input()
             )
 
@@ -227,7 +210,7 @@ class TestParseAndExtract:
                 file_name="test.pdf",
                 llama_api_key="llama-key",
                 pdfco_api_key="pdfco-key",
-                anthropic_api_key="claude-key",
+                gemini_api_key="gemini-key",
             )
 
             assert result is not None
@@ -236,15 +219,15 @@ class TestParseAndExtract:
 
     def test_ac27_llamaparse_fails_fallback_to_pdfco(self) -> None:
         """AC2.7: When LlamaParse raises, fall back to PDF.co."""
-        with patch("anthropic.Anthropic") as mock_client, \
+        with patch("google.genai.Client") as mock_model_cls, \
              patch("app.services.parser_llamaparse.parse_pdf") as mock_llama, \
              patch("app.services.parser_pdfco.parse_pdf") as mock_pdfco:
 
             mock_llama.side_effect = RuntimeError("llamaparse failed")
             mock_pdfco.return_value = "Invoice text from pdfco"
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
-            mock_instance.messages.create.return_value = make_claude_tool_response(
+            mock_model_cls.return_value = mock_instance
+            mock_instance.models.generate_content.return_value = make_gemini_tool_response(
                 make_valid_tool_input()
             )
 
@@ -254,7 +237,7 @@ class TestParseAndExtract:
                 file_name="test.pdf",
                 llama_api_key="llama-key",
                 pdfco_api_key="pdfco-key",
-                anthropic_api_key="claude-key",
+                gemini_api_key="gemini-key",
             )
 
             assert result is not None
@@ -275,7 +258,7 @@ class TestParseAndExtract:
                 file_name="test.pdf",
                 llama_api_key="llama-key",
                 pdfco_api_key="pdfco-key",
-                anthropic_api_key="claude-key",
+                gemini_api_key="gemini-key",
             )
 
             assert result is None
@@ -291,20 +274,20 @@ class TestParseAndExtract:
                 file_name="test.pdf",
                 llama_api_key="llama-key",
                 pdfco_api_key="pdfco-key",
-                anthropic_api_key="claude-key",
+                gemini_api_key="gemini-key",
             )
 
             assert result is None
 
     def test_parse_and_extract_extraction_failure_returns_none(self) -> None:
         """When extraction fails, return None."""
-        with patch("anthropic.Anthropic") as mock_client, \
+        with patch("google.genai.Client") as mock_model_cls, \
              patch("app.services.parser_llamaparse.parse_pdf") as mock_llama:
 
             mock_llama.return_value = "Some invoice text"
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
-            mock_instance.messages.create.return_value = make_claude_tool_response(
+            mock_model_cls.return_value = mock_instance
+            mock_instance.models.generate_content.return_value = make_gemini_tool_response(
                 {"vendor_raw": "incomplete"}  # Missing required fields
             )
 
@@ -314,7 +297,7 @@ class TestParseAndExtract:
                 file_name="test.pdf",
                 llama_api_key="llama-key",
                 pdfco_api_key="pdfco-key",
-                anthropic_api_key="claude-key",
+                gemini_api_key="gemini-key",
             )
 
             assert result is None
@@ -364,39 +347,30 @@ class TestVendorNormalization:
     def test_ac52_fuzzy_match_dots_in_name(self, vendor_file: pathlib.Path) -> None:
         """AC5.2: Fuzzy match normalizes punctuation (WW Grainger vs W.W. Grainger)."""
         with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file):
-            # "WW Grainger" vs "W.W. Grainger" should match at >95 via token_sort_ratio
             result = normalize("WW Grainger")
             assert result == "W.W. Grainger"
 
     def test_ac52_fuzzy_match_with_suffix_variation(self, vendor_file: pathlib.Path) -> None:
         """AC5.2: Fuzzy match works with variant suffix (Lowe's Company vs Lowe's)."""
         with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file):
-            # "Lowe's Company" after cleanco strip → "Lowe's" should match exactly
             result = normalize("Lowe's Company")
             assert result == "Lowe's"
 
     def test_ac53_novel_vendor_llm_matches_existing_canonical(self, vendor_file: pathlib.Path) -> None:
-        """AC5.3: LLM fallback matches a known canonical and promotes the alias to vendors.json.
-
-        The LLM may only return a name that already exists in the known canonicals list.
-        If it returns something not in the list, the result is discarded (C-2 fix).
-        """
+        """AC5.3: LLM fallback matches a known canonical and promotes the alias to vendors.json."""
         with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file), \
              patch("app.services.vendor_matcher._vendor_cache", None), \
-             patch("anthropic.Anthropic") as mock_client:
+             patch("google.genai.Client") as mock_model_cls:
 
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
+            mock_model_cls.return_value = mock_instance
             mock_response = MagicMock()
-            mock_response.content = [MagicMock()]
-            # LLM returns an existing canonical name
-            mock_response.content[0].text = "Acme Corp"
-            mock_instance.messages.create.return_value = mock_response
+            mock_response.text = "Acme Corp"
+            mock_instance.models.generate_content.return_value = mock_response
 
-            result = normalize("AcmeCorporation", anthropic_api_key="test-key")
+            result = normalize("AcmeCorporation", gemini_api_key="test-key")
 
             assert result == "Acme Corp"
-            # Verify the alias was promoted to vendors.json
             data = json.loads(vendor_file.read_text(encoding="utf-8"))
             assert data["AcmeCorporation"] == "Acme Corp"
 
@@ -404,53 +378,47 @@ class TestVendorNormalization:
         """AC5.3: LLM returning a name not in known canonicals is rejected; falls back to raw (C-2)."""
         with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file), \
              patch("app.services.vendor_matcher._vendor_cache", None), \
-             patch("anthropic.Anthropic") as mock_client:
+             patch("google.genai.Client") as mock_model_cls:
 
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
+            mock_model_cls.return_value = mock_instance
             mock_response = MagicMock()
-            mock_response.content = [MagicMock()]
-            # LLM tries to create a new canonical — must be rejected
-            mock_response.content[0].text = "Brand New Vendor"
-            mock_instance.messages.create.return_value = mock_response
+            mock_response.text = "Brand New Vendor"
+            mock_instance.models.generate_content.return_value = mock_response
 
-            result = normalize("UnknownVendor XYZ", anthropic_api_key="test-key")
+            result = normalize("UnknownVendor XYZ", gemini_api_key="test-key")
 
-            # Falls back to raw name because LLM result not in known canonicals
             assert result == "UnknownVendor XYZ"
 
     def test_ac53_llm_called_with_known_canonicals(self, vendor_file: pathlib.Path) -> None:
         """AC5.3: LLM receives the list of known canonical names."""
         with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file), \
-             patch("anthropic.Anthropic") as mock_client:
+             patch("google.genai.Client") as mock_model_cls:
 
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
+            mock_model_cls.return_value = mock_instance
             mock_response = MagicMock()
-            mock_response.content = [MagicMock()]
-            mock_response.content[0].text = "Novel Vendor"
-            mock_instance.messages.create.return_value = mock_response
+            mock_response.text = "Novel Vendor"
+            mock_instance.models.generate_content.return_value = mock_response
 
-            normalize("ForeignVendor", anthropic_api_key="test-key")
+            normalize("ForeignVendor", gemini_api_key="test-key")
 
-            # Verify Anthropic was called
-            mock_client.assert_called_once()
-            assert mock_instance.messages.create.called
-            # Check that prompt contains known canonicals
-            call_args = mock_instance.messages.create.call_args
-            prompt = call_args.kwargs["messages"][0]["content"]
-            assert "Acme Corp" in prompt  # Should contain at least one canonical
+            mock_model_cls.assert_called_once()
+            assert mock_instance.models.generate_content.called
+            call_args = mock_instance.models.generate_content.call_args
+            prompt = call_args.kwargs.get("contents") or call_args.args[0]
+            assert "Acme Corp" in prompt
 
     def test_ac54_llm_returns_none_falls_back_to_raw(self, vendor_file: pathlib.Path) -> None:
         """AC5.4: When LLM fails, fallback to vendor_raw unchanged."""
         with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file), \
-             patch("anthropic.Anthropic") as mock_client:
+             patch("google.genai.Client") as mock_model_cls:
 
             mock_instance = MagicMock()
-            mock_client.return_value = mock_instance
-            mock_instance.messages.create.side_effect = Exception("API error")
+            mock_model_cls.return_value = mock_instance
+            mock_instance.models.generate_content.side_effect = Exception("API error")
 
-            result = normalize("CompletelyNovelVendor", anthropic_api_key="test-key")
+            result = normalize("CompletelyNovelVendor", gemini_api_key="test-key")
 
             assert result == "CompletelyNovelVendor"
 
@@ -469,11 +437,11 @@ class TestVendorNormalization:
     def test_ac54_no_api_key_no_llm_fallback(self, vendor_file: pathlib.Path) -> None:
         """AC5.4: Without API key, LLM layer is skipped, returns vendor_raw."""
         with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file), \
-             patch("anthropic.Anthropic") as mock_client:
+             patch("google.genai.Client") as mock_model_cls:
 
             result = normalize("UnknownVendor")  # No API key
             assert result == "UnknownVendor"
-            mock_client.assert_not_called()
+            mock_model_cls.assert_not_called()
 
     def test_missing_vendors_json_returns_vendor_raw(self, tmp_path: pathlib.Path) -> None:
         """When vendors.json is missing, all layers fail, return vendor_raw."""
@@ -487,8 +455,6 @@ class TestVendorNormalization:
     ) -> None:
         """If fuzzy score < 88, skip to next layer."""
         with patch("app.services.vendor_matcher._VENDORS_PATH", vendor_file):
-            # A vendor name too different from any known canonical
-            # should not trigger fuzzy match and should return as-is
             result = normalize("XYZ123Corporation")
             assert result == "XYZ123Corporation"
 

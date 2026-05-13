@@ -42,7 +42,7 @@ def _strip_suffix(name: str) -> str:
     return name
 
 
-def normalize(vendor_raw: str, anthropic_api_key: str = "") -> str:
+def normalize(vendor_raw: str, gemini_api_key: str = "") -> str:
     """Resolve vendor_raw to canonical name via 3-layer cascade.
 
     Always returns a non-empty string (falls back to vendor_raw).
@@ -83,8 +83,8 @@ def normalize(vendor_raw: str, anthropic_api_key: str = "") -> str:
         return best_match
 
     # Layer 3: LLM fallback — match-only against known canonicals, never create new entries
-    if anthropic_api_key:
-        llm_result = _llm_resolve(vendor_raw, canonical_names, anthropic_api_key)
+    if gemini_api_key:
+        llm_result = _llm_resolve(vendor_raw, canonical_names, gemini_api_key)
         if llm_result and llm_result in canonical_names:
             with _lock:
                 mapping = _load_vendors()
@@ -101,12 +101,12 @@ def _llm_resolve(
     known_canonicals: list[str],
     api_key: str,
 ) -> str | None:
-    """Ask Claude to match a vendor name to a known canonical.
+    """Ask Gemini to match a vendor name to a known canonical.
 
     Returns a canonical name string (must be in known_canonicals) or None.
     """
-    import anthropic
-    from app.config import CLAUDE_MODEL
+    from google import genai
+    from app.config import GEMINI_MODEL
 
     # Sanitize vendor_raw before injecting into prompt (C-2)
     safe_vendor = vendor_raw[:200].replace("'", "\\'").replace('"', '\\"')
@@ -120,14 +120,10 @@ def _llm_resolve(
         "explanation.\n"
         "If this vendor does not match any known canonical, return exactly: NO_MATCH"
     )
-    client = anthropic.Anthropic(api_key=api_key)
+    client = genai.Client(api_key=api_key)
     try:
-        response = client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=64,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        result = response.content[0].text.strip()
+        response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+        result = response.text.strip()
         if result == "NO_MATCH" or not result:
             return None
         return result

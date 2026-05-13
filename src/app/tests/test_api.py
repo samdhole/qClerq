@@ -180,7 +180,7 @@ class TestExtractEndpoint:
         assert r.status_code == 415
         assert "Only PDF files accepted" in r.json()["detail"]
 
-    @patch("app.services.extractor_claude.parse_and_extract")
+    @patch("app.services.extractor_gemini.parse_and_extract")
     def test_extract_with_valid_pdf_mocked(self, mock_extract, client):
         """POST /extract with valid PDF calls extractor and returns InvoiceExtracted."""
         # Mock the extractor to return a valid invoice
@@ -198,7 +198,7 @@ class TestExtractEndpoint:
         assert data["vendor_raw"] == "Acme Corp LLC"
         assert data["total"] == 108.0
 
-    @patch("app.services.extractor_claude.parse_and_extract")
+    @patch("app.services.extractor_gemini.parse_and_extract")
     def test_extract_returns_422_on_extraction_failure(self, mock_extract, client):
         """POST /extract returns 422 if extractor returns None."""
         mock_extract.return_value = None

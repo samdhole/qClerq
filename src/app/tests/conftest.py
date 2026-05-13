@@ -25,7 +25,7 @@ def test_settings_env(tmp_path_factory):
         "SHEET_ID=test-sheet-id\n"
         "LLAMA_CLOUD_API_KEY=test-llama\n"
         "PDFCO_API_KEY=test-pdfco\n"
-        "ANTHROPIC_API_KEY=test-anthropic\n"
+        "GEMINI_API_KEY=test-gemini\n"
         "API_KEY=test-api-key\n"
         "QB_CLIENT_ID=test-qb-id\n"
         "QB_CLIENT_SECRET=test-qb-secret\n"

@@ -14,7 +14,7 @@ from app.schemas.invoice import (
     ValidationResult,
     WeeklySummary,
 )
-from app.services import extractor_claude, validator as inv_validator
+from app.services import extractor_gemini, validator as inv_validator
 from app.services.dedupe import (
     KnownInvoice,
     check_duplicate,
@@ -70,19 +70,20 @@ async def extract_invoice(
     file_hash = compute_hash(pdf_bytes)
     file_name = file.filename or "invoice.pdf"
 
-    result = extractor_claude.parse_and_extract(
+    result = extractor_gemini.parse_and_extract(
         pdf_bytes=pdf_bytes,
         file_hash=file_hash,
         file_name=file_name,
         llama_api_key=settings.llama_cloud_api_key,
         pdfco_api_key=settings.pdfco_api_key,
-        anthropic_api_key=settings.anthropic_api_key,
+        gemini_api_key=settings.gemini_api_key,
+        gemini_model=settings.gemini_model,
     )
     if result is None:
         raise HTTPException(status_code=422, detail="Extraction failed — could not parse PDF")
 
     from app.services.vendor_matcher import normalize
-    result.vendor_normalized = normalize(result.vendor_raw, settings.anthropic_api_key)
+    result.vendor_normalized = normalize(result.vendor_raw, settings.gemini_api_key)
 
     # Dedupe check: hash + semantic (H-1)
     try:

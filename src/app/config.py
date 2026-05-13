@@ -7,8 +7,7 @@ from functools import lru_cache
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Claude model pinned to 4.6 for all LLM extraction and vendor matching
-CLAUDE_MODEL = "claude-sonnet-4-6"
+GEMINI_MODEL = "gemini-3.1-flash-lite"
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +29,11 @@ class Settings(BaseSettings):
     sheet_id: str
     api_key: str
 
+    gemini_model: str = GEMINI_MODEL
+
     llama_cloud_api_key: str = ""
     pdfco_api_key: str = ""
-    anthropic_api_key: str
+    gemini_api_key: str
 
     qb_client_id: str = ""
     qb_client_secret: str = ""
