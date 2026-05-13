@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import base64
 
+# Note: This module uses requests while parser_llamaparse.py uses httpx.
+# This is intentional per Phase 2 plan (both specified different HTTP clients).
+# Consolidation to a single HTTP client is a future optimization task.
 import requests
 
 _ENDPOINT = "https://api.pdf.co/v1/pdf/convert/to/text"

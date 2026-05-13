@@ -40,7 +40,6 @@ def parse_pdf(pdf_bytes: bytes, filename: str, api_key: str) -> str:
         job_id = parse_resp.json()["job"]["id"]
 
         for _ in range(_MAX_POLLS):
-            time.sleep(_POLL_INTERVAL_S)
             result_resp = client.get(f"/api/v2/parse/{job_id}?expand=text_full")
             if result_resp.status_code != 200:
                 raise RuntimeError(
@@ -52,5 +51,6 @@ def parse_pdf(pdf_bytes: bytes, filename: str, api_key: str) -> str:
                 return data.get("text_full", "") or ""
             if status in ("FAILED", "ERROR"):
                 raise RuntimeError(f"llamaparse job failed with status: {status}")
+            time.sleep(_POLL_INTERVAL_S)
 
         raise RuntimeError("llamaparse job timed out after polling")

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import json
+import logging
 import pathlib
-from datetime import date
 from typing import Any
 
 import anthropic
 
-from app.schemas.invoice import ExceptionItem, InvoiceExtracted, LineItem
+from app.schemas.invoice import InvoiceExtracted
 
 _PROMPT_PATH = pathlib.Path(__file__).parent.parent / "prompts" / "invoice_extraction.md"
+# Pinned to Claude Sonnet 4.6 (the correct current model per project environment)
 _MODEL = "claude-sonnet-4-6"
 _MAX_TOKENS = 4096
 
@@ -87,6 +87,7 @@ def extract(
             messages=[{"role": "user", "content": f"Extract all invoice fields:\n\n{raw_text}"}],
         )
     except Exception:
+        logging.exception("Claude API call failed during extraction")
         return None
 
     if response.stop_reason != "tool_use":
@@ -103,6 +104,7 @@ def extract(
     try:
         return InvoiceExtracted.model_validate(data)
     except Exception:
+        logging.exception("Pydantic validation failed for extracted invoice data")
         return None
 
 
