@@ -1,0 +1,133 @@
+# Human Test Plan — qClerq AI Invoice Pipeline
+# Generated: 2026-05-13 | Automated coverage: 26/26 ACs | Tests: 114 passed
+
+## Prerequisites
+
+- `.env` populated with: `ANTHROPIC_API_KEY`, `LLAMAPARSE_API_KEY`, `PDFCO_API_KEY`, Google service account JSON, `SPREADSHEET_ID`, QuickBooks OAuth tokens, Jobber API token, `OWNER_EMAIL=enigman.kk@gmail.com`
+- FastAPI app running: `uv run uvicorn src.app.main:app --reload --host 127.0.0.1 --port 8000`
+- n8n running locally with `workflows/n8n_invoice_desk.json` imported and credentials re-attached:
+  - Google OAuth2 → `Invoice Folder Monitor`, `Download Invoice PDF`
+  - Gmail OAuth2 → `Monitor Gmail Invoices`, `Send Invoice for Approval`, `Send Rejection Notification`, `Send Weekly Report Email`
+  - Google Sheets OAuth2 → `Write to Invoices Sheet`, `Write to Exceptions Sheet`
+- `uv run pytest src/app/tests/ -v` passes (114 passed)
+- Test Sheets workbook has `Invoices` and `Exceptions` tabs with header rows matching `src/app/services/sheets_sync.py`
+
+---
+
+## Phase 1: Intake Trigger Verification
+
+| Step | Action | Expected |
+|------|--------|----------|
+| 1.1 | Send email to monitored Gmail inbox with valid PDF attached (AC1.1) | n8n `Monitor Gmail Invoices` fires; `POST /extract` returns 200 |
+| 1.2 | Drop PDF into monitored Drive folder (AC1.2) | `Invoice Folder Monitor` triggers; `Download Invoice PDF` succeeds; `/extract` called |
+| 1.3 | Submit Web Upload Form with valid PDF (AC1.3) | Form submits; n8n routes to `/extract`; 200 returned |
+| 1.4 | Send `.docx` or `.png` via monitored Gmail (AC1.4) | n8n filter drops before `/extract`. Force-test: `curl -X POST http://127.0.0.1:8000/extract -F "file=@something.docx"` returns 415 |
+
+---
+
+## Phase 2: Approval Tier Routing
+
+| Step | Action | Expected |
+|------|--------|----------|
+| 2.1 | Upload PDF with total < $500 via Web Form | `/validate` returns `approval_tier="auto"` (AC3.1); no approval email; `/sync` runs immediately; Sheets row created |
+| 2.2 | Upload PDF with total $500–$5000 | `approval_tier="manager"` (AC3.2); approval email arrives with Approve/Reject links |
+| 2.3 | Upload PDF with total > $5000 | `approval_tier="cfo"` (AC3.3); CFO approval email arrives |
+| 2.4 | Click "Approve" in the manager email (AC3.4) | Sheets row gains `approved_by`, `approval_notes`, `approved_at` (ISO timestamp); success page shown |
+| 2.5 | Click "Reject" on a separate invoice | Rejection notification email sent to submitter; no sync to QB/Jobber |
+
+---
+
+## Phase 3: Proof Trail Audit on Sheets Row (AC6)
+
+Pick an approved invoice from step 2.1.
+
+| Step | Action | Expected |
+|------|--------|----------|
+| 3.1 | Open the Sheets `Invoices` tab row | Columns populated: `approval_tier`, `approved_by`, `approved_at` (AC6.1) |
+| 3.2 | Inspect `sync_status` column | JSON dict with keys `sheets`, `quickbooks`, `jobber` each `"ok"` or `"failed"` (AC4.6) |
+| 3.3 | Inspect ID columns | `qb_bill_id` and `jobber_expense_id` populated for successful targets (AC6.1) |
+| 3.4 | Inspect `file_hash` column | 64-char SHA-256 hex string present (AC6.3) |
+
+---
+
+## Phase 4: Failure Isolation in Sync
+
+| Step | Action | Expected |
+|------|--------|----------|
+| 4.1 | Revoke QB token; upload valid invoice | Sheets row written; Jobber expense created; `sync_status["quickbooks"]="failed"`, others `"ok"` (AC4.4) |
+| 4.2 | Restore QB; revoke Jobber token; upload another invoice | Sheets + QB succeed; `sync_status["jobber"]="failed"` (AC4.5) |
+| 4.3 | Restore all tokens | Subsequent uploads: all three statuses `"ok"` |
+
+---
+
+## Phase 5: Duplicate and Low-Confidence Handling
+
+| Step | Action | Expected |
+|------|--------|----------|
+| 5.1 | Upload the same PDF from step 2.1 a second time (AC1.5) | `Exceptions` tab: new row with `issue_type="duplicate"`, `duplicate_risk="likely"`, `status="open"` |
+| 5.2 | Upload handwritten / low-res scan (AC2.6) | `Exceptions` row with `issue_type="low_confidence"`, severity set, `status="open"` |
+| 5.3 | Upload PDF where subtotal+tax ≠ total | `Exceptions` row with `issue_type="math_error"` (verifies AC2.4 in live env) |
+
+---
+
+## Phase 6: Weekly Report
+
+| Step | Action | Expected |
+|------|--------|----------|
+| 6.1 | In n8n, manually execute `Weekly Report Trigger` workflow (AC7.2) | `/report/weekly` called; `Send Weekly Report Email` node green |
+| 6.2 | Check `enigman.kk@gmail.com` inbox | Email arrives with `WeeklySummary`: invoice count, total value, top vendors, sync failures, period dates |
+| 6.3 | `curl http://127.0.0.1:8000/report/weekly` in an empty-data week | Returns 200 with zeroed `WeeklySummary` (AC7.3) |
+
+---
+
+## End-to-End: 60-second Auto-Approve Path
+
+**Purpose:** Validates the full happy path — PDF → Sheets-with-proof-trail in ~60s.
+
+1. Start timer.
+2. Submit a small-total (<$500) PDF via the Web Upload Form.
+3. Watch n8n execution view: each node turns green sequentially (Trigger → /extract → /validate → /sync).
+4. Open Sheets `Invoices` tab; confirm the new row appears.
+5. Stop timer.
+
+**Expected:** elapsed ≤ ~60s; row contains all required fields, proof trail columns, file_hash, and `sync_status` showing all three targets `"ok"`.
+
+---
+
+## Traceability
+
+| AC | Automated Test | Manual Step |
+|----|----------------|-------------|
+| AC1.1 | — | Phase 1.1 |
+| AC1.2 | — | Phase 1.2 |
+| AC1.3 | — | Phase 1.3 |
+| AC1.4 | — | Phase 1.4 |
+| AC1.5 | `test_dedupe.py::test_known_hash_is_likely_duplicate` | Phase 5.1 |
+| AC2.1 | `test_extraction_goldens.py::test_ac21_valid_text_returns_invoice_extracted` | E2E step 3 |
+| AC2.2 | `test_extraction_goldens.py::test_ac22_*` | Phase 5.2 |
+| AC2.3 | `test_validation.py::test_math_check_passes_when_balanced` | E2E |
+| AC2.4 | `test_validation.py::test_math_error_when_totals_mismatch` | Phase 5.3 |
+| AC2.5 | `test_validation.py::test_missing_*` | — |
+| AC2.6 | `test_validation.py::test_low_confidence_below_floor` | Phase 5.2 |
+| AC2.7 | `test_extraction_goldens.py::test_ac27_llamaparse_fails_fallback_to_pdfco` | — |
+| AC3.1 | `test_api.py::test_validate_auto_tier` | Phase 2.1 |
+| AC3.2 | `test_api.py::test_validate_manager_tier` | Phase 2.2 |
+| AC3.3 | `test_api.py::test_validate_cfo_tier` | Phase 2.3 |
+| AC3.4 | — | Phase 2.4 |
+| AC3.5 | `test_api.py::test_approval_callback_rejects_missing_approved_by` | — |
+| AC4.1 | `test_sync.py::test_sync_all_sheets_success` | E2E step 4 |
+| AC4.2 | `test_quickbooks_sync.py::test_create_bill_uses_vendor_and_line_items` | Phase 3.3 |
+| AC4.3 | `test_jobber_sync.py::test_jobber_expense_payload_contains_total_and_job_id` | Phase 3.3 |
+| AC4.4 | `test_sync.py::test_sync_all_qb_failure_does_not_block_jobber` | Phase 4.1 |
+| AC4.5 | `test_sync.py::test_sync_all_jobber_failure_does_not_block_sheets` | Phase 4.2 |
+| AC4.6 | `test_sync.py::test_sync_all_backfill_sync_status` | Phase 3.2 |
+| AC5.1 | `test_extraction_goldens.py::test_ac51_exact_match_*` | — |
+| AC5.2 | `test_extraction_goldens.py::test_ac52_fuzzy_match_*` | — |
+| AC5.3 | `test_extraction_goldens.py::test_ac53_novel_vendor_llm_success` | — |
+| AC5.4 | `test_extraction_goldens.py::test_ac54_*` | — |
+| AC6.1 | `test_sync.py::test_sync_all_sheets_row_has_proof_trail_columns` | Phase 3.1, 3.3 |
+| AC6.2 | `test_sheets_sync.py::test_write_exceptions_row_structure` | Phase 5.1 |
+| AC6.3 | `test_sheets_sync.py::test_write_invoice_row_includes_file_hash` | Phase 3.4 |
+| AC7.1 | `test_report.py::test_get_report_weekly_endpoint_returns_valid_summary` | Phase 6.3 |
+| AC7.2 | — | Phase 6.1–6.2 |
+| AC7.3 | `test_report.py::test_get_report_weekly_endpoint_with_empty_week` | Phase 6.3 |
