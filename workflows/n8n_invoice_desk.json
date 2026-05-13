@@ -432,6 +432,32 @@
         }
       },
       "typeVersion": 2.1
+    },
+    {
+      "id": "call-extract-api",
+      "name": "Call /extract API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/extract",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "parameterType": "formBinaryData",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      }
     }
   ],
   "connections": {
@@ -494,7 +520,7 @@
       "main": [
         [
           {
-            "node": "Invoice Parser AI Agent",
+            "node": "Call /extract API",
             "type": "main",
             "index": 0
           }
@@ -516,7 +542,7 @@
       "main": [
         [
           {
-            "node": "Invoice Parser AI Agent",
+            "node": "Call /extract API",
             "type": "main",
             "index": 0
           }
@@ -538,7 +564,7 @@
       "main": [
         [
           {
-            "node": "Invoice Parser AI Agent",
+            "node": "Call /extract API",
             "type": "main",
             "index": 0
           }
