@@ -7,8 +7,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from app.config import Settings, get_settings
-
-logger = logging.getLogger(__name__)
 from app.schemas.invoice import (
     InvoiceExtracted,
     SyncRequest,
@@ -18,6 +16,8 @@ from app.schemas.invoice import (
 )
 from app.services import extractor_claude, validator as inv_validator
 from app.services.dedupe import check_duplicate, compute_hash
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

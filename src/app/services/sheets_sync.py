@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
 import gspread
+
+logger = logging.getLogger(__name__)
 
 from app.schemas.invoice import ExceptionItem, InvoiceExtracted, SyncRequest, SyncResult
 
@@ -151,6 +154,7 @@ async def sync(req: SyncRequest, settings: Any) -> SyncResult:
         )
         sync_status["sheets"] = "ok"
     except Exception:
+        logger.error("Sheets sync failed", exc_info=True)
         sync_status["sheets"] = "failed"
         row_id = None
 
