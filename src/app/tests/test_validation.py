@@ -1,4 +1,3 @@
-import pytest
 from datetime import date
 
 from app.schemas.invoice import ExceptionItem, InvoiceExtracted, ValidationResult
