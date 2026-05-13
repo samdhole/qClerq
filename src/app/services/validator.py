@@ -9,6 +9,7 @@ from app.schemas.validation import (
     MATH_TOLERANCE_REL,
     REQUIRED_FIELDS,
 )
+from app.services.approval_router import route as compute_tier
 
 
 def validate(
@@ -75,12 +76,9 @@ def validate(
         )
 
     # Determine approval tier
-    if inv.total < approval_tier_1_max:
-        tier: Literal["auto", "manager", "cfo"] = "auto"
-    elif inv.total <= approval_tier_2_max:
-        tier = "manager"
-    else:
-        tier = "cfo"
+    tier: Literal["auto", "manager", "cfo"] = compute_tier(
+        inv.total, approval_tier_1_max, approval_tier_2_max
+    )
 
     is_clean = len(exceptions) == 0
     return ValidationResult(
