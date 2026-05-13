@@ -23,7 +23,7 @@
         "folderToWatch": {
           "__rl": true,
           "mode": "id",
-          "value": "REPLACE_WITH_DRIVE_FOLDER_ID"
+          "value": "1a2b3c4d5e6f7g8h9i0j"
         }
       },
       "credentials": {
@@ -279,7 +279,7 @@
       ],
       "webhookId": "a23938a4-fc6c-4445-8dee-17e501e92e06",
       "parameters": {
-        "sendTo": "REPLACE_WITH_APPROVER_EMAIL",
+        "sendTo": "enigman.kk@gmail.com",
         "subject": "=[Action Required] Invoice \u00e2\u20ac\u201d {{ $json.output.vendor_normalized || $json.output.vendor_raw }} / {{ $json.output.invoice_number }}",
         "message": "=New invoice for approval:\n\nVendor: {{ $json.output.vendor_normalized }}\nInvoice #: {{ $json.output.invoice_number }}\nDate: {{ $json.output.invoice_date }}\nTotal: {{ $json.output.currency }} {{ $json.output.total }}\nDuplicate risk: {{ $json.output.duplicate_risk }}\nWarnings: {{ ($json.output.warnings || []).join(', ') || 'none' }}",
         "options": {},
@@ -417,7 +417,7 @@
         900
       ],
       "parameters": {
-        "sendTo": "REPLACE_WITH_FINANCE_EMAIL",
+        "sendTo": "enigman.kk@gmail.com",
         "subject": "=[Rejected] Invoice from {{ $('Invoice Parser AI Agent').item.json.output.vendor_normalized }}",
         "message": "=Invoice rejected.\n\nVendor: {{ $('Invoice Parser AI Agent').item.json.output.vendor_normalized }}\nInvoice #: {{ $('Invoice Parser AI Agent').item.json.output.invoice_number }}\nTotal: {{ $('Invoice Parser AI Agent').item.json.output.currency }} {{ $('Invoice Parser AI Agent').item.json.output.total }}\n\nReviewed by: {{ $('Send Invoice for Approval').item.json.data['Reviewed By'] }}\nNotes: {{ $('Send Invoice for Approval').item.json.data['Approval Notes'] }}",
         "options": {
@@ -561,6 +561,71 @@
         },
         "fallbackOutput": "none"
       }
+    },
+    {
+      "id": "call-sync-api",
+      "name": "Call /sync API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/sync",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ invoice: $('Call /extract API').item.json, approved_by: 'auto-approved', approval_notes: '', approved_at: new Date().toISOString(), approval_tier: 'auto' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "call-approval-callback",
+      "name": "Call /approval-callback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1500,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/approval-callback",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ invoice: $('Call /extract API').item.json, approved_by: $json.approvedBy || $json.approved_by || 'approver', approval_notes: $json.approvalNotes || $json.approval_notes || '', approved_at: new Date().toISOString(), approval_tier: $('Call /validate API').item.json.approval_tier }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "filter-pdf-drive",
+      "name": "Is PDF? (Drive)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        400,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $binary.data.mimeType }}",
+              "rightValue": "application/pdf",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "connections": {
@@ -590,7 +655,7 @@
       "main": [
         [
           {
-            "node": "Download Invoice PDF",
+            "node": "Is PDF? (Drive)",
             "type": "main",
             "index": 0
           }
@@ -718,7 +783,7 @@
       "main": [
         [
           {
-            "node": "Write to Invoices Sheet",
+            "node": "Call /approval-callback",
             "type": "main",
             "index": 0
           }
@@ -767,7 +832,13 @@
     },
     "Route by Approval Tier": {
       "main": [
-        [],
+        [
+          {
+            "node": "Call /sync API",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Send Invoice for Approval",
@@ -778,6 +849,17 @@
         [
           {
             "node": "Send Invoice for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is PDF? (Drive)": {
+      "main": [
+        [
+          {
+            "node": "Download Invoice PDF",
             "type": "main",
             "index": 0
           }
