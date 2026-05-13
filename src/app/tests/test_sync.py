@@ -190,3 +190,83 @@ async def test_sync_all_returns_all_ids_on_success(client):
                     assert result["sync_status"]["sheets"] == "ok"
                     assert result["sync_status"]["quickbooks"] == "ok"
                     assert result["sync_status"]["jobber"] == "ok"
+
+
+def test_sync_all_sheets_row_contains_invoice_fields(client):
+    """Verify Sheets row payload contains required invoice fields (AC4.1)."""
+    with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets_write:
+        mock_sheets_write.return_value = "6"
+        with patch("app.services.quickbooks_sync.sync") as mock_qb:
+            mock_qb.return_value = SyncResult(
+                qb_bill_id="QB-666",
+                sync_status={"quickbooks": "ok"}
+            )
+            with patch("app.services.jobber_sync.sync") as mock_jobber:
+                mock_jobber.return_value = SyncResult(
+                    jobber_expense_id="JOB-777",
+                    sync_status={"jobber": "ok"}
+                )
+                with patch("app.services.sheets_sync.update_sync_status"):
+                    req_data = make_sync_request(
+                        invoice={
+                            **make_sync_request()["invoice"],
+                            "vendor_normalized": "Test Vendor Inc",
+                            "total": 1234.56,
+                            "invoice_number": "INV-999",
+                            "invoice_date": "2026-03-15",
+                        }
+                    )
+                    response = client.post("/sync", json=req_data)
+
+                    assert response.status_code == 200
+                    # Capture the args passed to write_invoice_row
+                    assert mock_sheets_write.called
+                    call_args = mock_sheets_write.call_args
+                    sync_req = call_args[0][1]  # 2nd positional arg is SyncRequest
+
+                    # Verify required invoice fields are in the request
+                    assert sync_req.invoice.vendor_normalized == "Test Vendor Inc"
+                    assert sync_req.invoice.total == 1234.56
+                    assert sync_req.invoice.invoice_number == "INV-999"
+                    assert sync_req.invoice.invoice_date is not None
+
+
+@pytest.mark.asyncio
+async def test_sync_all_sheets_row_has_proof_trail_columns(client):
+    """Verify Sheets row has proof trail columns (AC6.1)."""
+    with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets_write:
+        mock_sheets_write.return_value = "7"
+        with patch("app.services.sheets_sync.update_sync_status") as mock_update_status:
+            with patch("app.services.quickbooks_sync.sync") as mock_qb:
+                mock_qb.return_value = SyncResult(
+                    qb_bill_id="QB-777",
+                    sync_status={"quickbooks": "ok"}
+                )
+                with patch("app.services.jobber_sync.sync") as mock_jobber:
+                    mock_jobber.return_value = SyncResult(
+                        jobber_expense_id="JOB-888",
+                        sync_status={"jobber": "ok"}
+                    )
+
+                    req_data = make_sync_request(
+                        approved_by="manager@test.local",
+                        approval_tier="manager",
+                    )
+                    response = client.post("/sync", json=req_data)
+
+                    assert response.status_code == 200
+                    # Verify write_invoice_row was called with proof trail data
+                    assert mock_sheets_write.called
+                    call_args = mock_sheets_write.call_args
+                    sync_req = call_args[0][1]
+
+                    assert sync_req.approved_by == "manager@test.local"
+                    assert sync_req.approval_tier == "manager"
+                    assert sync_req.approved_at is not None
+
+                    # Verify update_sync_status was called with sync_status
+                    assert mock_update_status.called
+                    update_call_args = mock_update_status.call_args
+                    sync_status_arg = update_call_args[0][2]  # 3rd positional argument
+                    assert isinstance(sync_status_arg, dict)
+                    assert "sheets" in sync_status_arg
