@@ -337,61 +337,6 @@
       "typeVersion": 2.2
     },
     {
-      "id": "bb0a4401-9feb-4240-a62f-ad90c6c642a1",
-      "name": "Write to Invoices Sheet",
-      "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        4180,
-        640
-      ],
-      "parameters": {
-        "columns": {
-          "value": {
-            "status": "={{ $('Check Approval Decision').item.json.data['Approve Invoice?'] === 'Yes' ? 'approved' : 'rejected' }}",
-            "received_at": "={{ $now.toISO() }}",
-            "vendor_raw": "={{ $('Invoice Parser AI Agent').item.json.output.vendor_raw }}",
-            "vendor_normalized": "={{ $('Invoice Parser AI Agent').item.json.output.vendor_normalized }}",
-            "invoice_number": "={{ $('Invoice Parser AI Agent').item.json.output.invoice_number }}",
-            "invoice_date": "={{ $('Invoice Parser AI Agent').item.json.output.invoice_date }}",
-            "due_date": "={{ $('Invoice Parser AI Agent').item.json.output.due_date }}",
-            "po_number": "={{ $('Invoice Parser AI Agent').item.json.output.po_number }}",
-            "job_id": "={{ $('Invoice Parser AI Agent').item.json.output.job_id }}",
-            "subtotal": "={{ $('Invoice Parser AI Agent').item.json.output.subtotal }}",
-            "tax": "={{ $('Invoice Parser AI Agent').item.json.output.tax }}",
-            "total": "={{ $('Invoice Parser AI Agent').item.json.output.total }}",
-            "currency": "={{ $('Invoice Parser AI Agent').item.json.output.currency }}",
-            "approval_status": "={{ $('Check Approval Decision').item.json.data['Approve Invoice?'] }}",
-            "approver": "={{ $('Check Approval Decision').item.json.data['Reviewed By'] }}",
-            "approval_notes": "={{ $('Check Approval Decision').item.json.data['Approval Notes'] }}",
-            "duplicate_risk": "={{ $('Invoice Parser AI Agent').item.json.output.duplicate_risk }}",
-            "confidence_overall": "={{ $('Invoice Parser AI Agent').item.json.output.confidence_overall }}",
-            "source_file_name": "={{ $('Compute File Hash').item.json.file_name }}",
-            "sync_status": "pending"
-          }
-        },
-        "mappingMode": "defineBelow",
-        "matchingColumns": [],
-        "operation": "append",
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Invoices"
-        },
-        "documentId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "1Vy7dvq18Jh6CSoNBkNk1YMjN9btXGIsLv5nQdO7i9sY"
-        }
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "credential-id",
-          "name": "Google Sheets"
-        }
-      },
-      "typeVersion": 4.5
-    },
-    {
       "id": "24d89a38-91cc-429d-af6a-8616d67c1e03",
       "name": "Send Rejection Notification",
       "type": "n8n-nodes-base.gmail",
@@ -709,7 +654,7 @@
       "main": [
         [
           {
-            "node": "Extract Text from Form PDF",
+            "node": "Is PDF? (Form)",
             "type": "main",
             "index": 0
           }
@@ -720,7 +665,7 @@
       "main": [
         [
           {
-            "node": "Is PDF? (Form)",
+            "node": "Call /extract API",
             "type": "main",
             "index": 0
           }
@@ -858,7 +803,7 @@
       "main": [
         [
           {
-            "node": "Call /extract API",
+            "node": "Extract Text from Form PDF",
             "type": "main",
             "index": 0
           }
