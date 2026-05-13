@@ -61,6 +61,8 @@ async def extract_invoice(
         result.duplicate_risk = check_duplicate(file_hash, known)
     except Exception as e:
         logger.warning(f"Dedupe check failed (best-effort): {e}", exc_info=True)
+        result.duplicate_risk = "possible"
+        result.warnings.append("Dedupe check unavailable — treating as possible duplicate")
 
     return result
 
@@ -106,6 +108,8 @@ async def approval_callback(
     """
     if not req.approved_by:
         raise HTTPException(status_code=422, detail="approved_by is required to sync")
+    if req.approval_tier == "auto":
+        raise HTTPException(status_code=422, detail="auto-tier invoices must use /sync directly")
     # Delegate to the combined sync flow defined in Phase 6.
     # NOTE: sync_all raises 501 until Phase 6 Task 4 replaces its body — this endpoint will also 501 until then.
     return await sync_all(req, settings)
@@ -117,6 +121,8 @@ async def sync_all(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SyncResult:
     """Sync to all three targets. Sheets row written first; backfilled after QB + Jobber."""
+    if not req.approved_by:
+        raise HTTPException(status_code=422, detail="approved_by is required to sync")
     from app.services import sheets_sync, quickbooks_sync, jobber_sync
 
     sheets_row_id: str | None = None

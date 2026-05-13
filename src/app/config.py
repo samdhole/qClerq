@@ -4,6 +4,9 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Claude model pinned to 4.6 for all LLM extraction and vendor matching
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -28,6 +31,7 @@ class Settings(BaseSettings):
     qb_client_secret: str = ""
     qb_refresh_token: str = ""
     qb_realm_id: str = ""
+    qb_default_expense_account_id: str = "1"
 
     jobber_access_token: str = ""
 

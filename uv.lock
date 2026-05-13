@@ -20,7 +20,6 @@ dependencies = [
     { name = "python-multipart" },
     { name = "python-quickbooks" },
     { name = "rapidfuzz" },
-    { name = "requests" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -49,7 +48,6 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "python-quickbooks", specifier = ">=0.9.12" },
     { name = "rapidfuzz", specifier = ">=3.9.0" },
-    { name = "requests", specifier = ">=2.32.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.46.0" },
 ]
 provides-extras = ["dev"]

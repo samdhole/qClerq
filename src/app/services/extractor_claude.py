@@ -6,12 +6,12 @@ from typing import Any
 
 import anthropic
 
+from app.config import CLAUDE_MODEL
 from app.schemas.invoice import InvoiceExtracted
 from app.services import parser_llamaparse, parser_pdfco
 
 _PROMPT_PATH = pathlib.Path(__file__).parent.parent / "prompts" / "invoice_extraction.md"
-# Pinned to Claude Sonnet 4.6 (the correct current model per project environment)
-_MODEL = "claude-sonnet-4-6"
+_MODEL = CLAUDE_MODEL
 _MAX_TOKENS = 4096
 
 _TOOL_SCHEMA: dict[str, Any] = {

@@ -23,6 +23,7 @@ def test_settings_env(tmp_path_factory):
         "QB_CLIENT_SECRET=test-qb-secret\n"
         "QB_REFRESH_TOKEN=test-refresh\n"
         "QB_REALM_ID=test-realm\n"
+        "QB_DEFAULT_EXPENSE_ACCOUNT_ID=1\n"
         "JOBBER_ACCESS_TOKEN=test-jobber\n"
         "GOOGLE_SERVICE_ACCOUNT_JSON={}\n"
     )

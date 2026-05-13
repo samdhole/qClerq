@@ -98,6 +98,7 @@ def _llm_resolve(
     Returns canonical name string or None on failure.
     """
     import anthropic
+    from app.config import CLAUDE_MODEL
 
     known_str = "\n".join(f"- {c}" for c in known_canonicals[:50])
     prompt = (
@@ -113,7 +114,7 @@ def _llm_resolve(
     client = anthropic.Anthropic(api_key=api_key)
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-6",
+            model=CLAUDE_MODEL,
             max_tokens=64,
             messages=[{"role": "user", "content": prompt}],
         )

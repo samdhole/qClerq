@@ -6,7 +6,7 @@ from typing import Any
 from app.schemas.invoice import SyncRequest, SyncResult
 
 
-def _create_bill_sync(req: SyncRequest, settings: Any) -> str:
+def _create_bill_sync(req: SyncRequest, settings: Any, account_id: str) -> str:
     """Create QB Bill and return qb_bill_id. Raises on failure."""
     from quickbooks import QuickBooks
     from quickbooks.objects.base import Ref
@@ -42,7 +42,7 @@ def _create_bill_sync(req: SyncRequest, settings: Any) -> str:
     for item in req.invoice.line_items:
         detail = AccountBasedExpenseLineDetail()
         detail.AccountRef = Ref()
-        detail.AccountRef.value = "1"
+        detail.AccountRef.value = account_id
 
         line = AccountBasedExpenseLine()
         line.Amount = item.line_total
@@ -54,7 +54,7 @@ def _create_bill_sync(req: SyncRequest, settings: Any) -> str:
     if not lines:
         detail = AccountBasedExpenseLineDetail()
         detail.AccountRef = Ref()
-        detail.AccountRef.value = "1"
+        detail.AccountRef.value = account_id
         line = AccountBasedExpenseLine()
         line.Amount = req.invoice.total
         line.DetailType = "AccountBasedExpenseLineDetail"
@@ -75,7 +75,7 @@ def _create_bill_sync(req: SyncRequest, settings: Any) -> str:
 async def sync(req: SyncRequest, settings: Any) -> SyncResult:
     """Create QuickBooks Bill. Returns SyncResult with qb_bill_id."""
     try:
-        qb_bill_id = await asyncio.to_thread(_create_bill_sync, req, settings)
+        qb_bill_id = await asyncio.to_thread(_create_bill_sync, req, settings, settings.qb_default_expense_account_id)
         sync_status = {"quickbooks": "ok"}
     except Exception:
         qb_bill_id = None

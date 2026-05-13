@@ -16,7 +16,6 @@ dependencies = [
     "python-multipart>=0.0.9",
     "rapidfuzz>=3.9.0",
     "cleanco>=2.2",
-    "requests>=2.32.0",
     "gspread>=6.1.0",
     "google-auth>=2.29.0",
     "python-quickbooks>=0.9.12",
