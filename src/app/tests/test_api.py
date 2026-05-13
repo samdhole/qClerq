@@ -122,7 +122,7 @@ class TestApprovalCallbackEndpoint:
 
     def test_approval_callback_with_approved_by_calls_sync(self, client):
         """POST /approval-callback with approved_by calls sync orchestration (AC3.4)."""
-        with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets:
+        with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets:
             mock_sheets.return_value = "1"
             with patch("app.services.quickbooks_sync.sync") as mock_qb:
                 mock_qb.return_value = MagicMock(qb_bill_id="QB-123", sync_status={"quickbooks": "ok"})
@@ -145,9 +145,9 @@ class TestSyncEndpoint:
 
     def test_sync_orchestration_success(self, client):
         """POST /sync runs all three targets with mocked sync modules (AC4.6)."""
-        with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets:
+        with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets:
             mock_sheets.return_value = "2"
-            with patch("app.services.sheets_sync._update_sync_status"):
+            with patch("app.services.sheets_sync.update_sync_status"):
                 with patch("app.services.quickbooks_sync.sync") as mock_qb:
                     mock_qb.return_value = MagicMock(qb_bill_id="QB-999", sync_status={"quickbooks": "ok"})
                     with patch("app.services.jobber_sync.sync") as mock_jobber:

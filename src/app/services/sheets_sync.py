@@ -68,7 +68,7 @@ def _inv_to_row(req: SyncRequest, qb_bill_id: str | None, jobber_expense_id: str
     ]
 
 
-def _write_invoice_row(
+def write_invoice_row(
     sheet_id: str,
     req: SyncRequest,
     qb_bill_id: str | None,
@@ -87,7 +87,7 @@ def _write_invoice_row(
     return str(row_index)
 
 
-def _update_sync_status(sheet_id: str, row_index: int, sync_status: dict, qb_bill_id: str | None, jobber_expense_id: str | None, service_account_json: str) -> None:
+def update_sync_status(sheet_id: str, row_index: int, sync_status: dict, qb_bill_id: str | None, jobber_expense_id: str | None, service_account_json: str) -> None:
     gc = _get_client(service_account_json)
     sh = gc.open_by_key(sheet_id)
     ws = sh.worksheet(_INVOICES_SHEET)
@@ -132,11 +132,16 @@ def get_known_hashes(sheet_id: str, service_account_json: str) -> set[str]:
 
 
 async def sync(req: SyncRequest, settings: Any) -> SyncResult:
-    """Write invoice row to Sheets Invoices tab. Returns SyncResult with sheets_row_id."""
-    sync_status: dict[str, str] = {"sheets": "ok"}
+    """Write invoice row to Sheets Invoices tab. Returns SyncResult with sheets_row_id.
+
+    This is the public entry point for standalone Sheets sync (mainly for testing).
+    For full multi-target sync, use api.sync_all which orchestrates Sheets + QB + Jobber.
+    """
+    sync_status: dict[str, str] = {}
+    row_id: str | None = None
     try:
         row_id = await asyncio.to_thread(
-            _write_invoice_row,
+            write_invoice_row,
             settings.sheet_id,
             req,
             None,
@@ -144,7 +149,8 @@ async def sync(req: SyncRequest, settings: Any) -> SyncResult:
             sync_status,
             settings.google_service_account_json,
         )
-    except Exception as exc:
+        sync_status["sheets"] = "ok"
+    except Exception:
         sync_status["sheets"] = "failed"
         row_id = None
 

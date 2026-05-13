@@ -28,7 +28,7 @@ def make_sync_request(**overrides) -> dict:
 @pytest.mark.asyncio
 async def test_sync_all_sheets_success(client):
     """Verify Sheets row is written with initial sync_status (AC4.1)."""
-    with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets_write:
+    with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets_write:
         mock_sheets_write.return_value = "1"
         with patch("app.services.quickbooks_sync.sync") as mock_qb:
             mock_qb.return_value = SyncResult(
@@ -53,7 +53,7 @@ async def test_sync_all_sheets_success(client):
 @pytest.mark.asyncio
 async def test_sync_all_qb_failure_does_not_block_jobber(client):
     """Verify QB sync failure sets sync_status['quickbooks']='failed' without blocking Jobber (AC4.4)."""
-    with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets_write:
+    with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets_write:
         mock_sheets_write.return_value = "2"
         with patch("app.services.quickbooks_sync.sync") as mock_qb:
             # QB sync fails
@@ -80,7 +80,7 @@ async def test_sync_all_qb_failure_does_not_block_jobber(client):
 @pytest.mark.asyncio
 async def test_sync_all_jobber_failure_does_not_block_sheets(client):
     """Verify Jobber sync failure sets sync_status['jobber']='failed' without blocking (AC4.5)."""
-    with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets_write:
+    with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets_write:
         mock_sheets_write.return_value = "3"
         with patch("app.services.quickbooks_sync.sync") as mock_qb:
             mock_qb.return_value = SyncResult(
@@ -105,9 +105,9 @@ async def test_sync_all_jobber_failure_does_not_block_sheets(client):
 @pytest.mark.asyncio
 async def test_sync_all_backfill_sync_status(client):
     """Verify final sync_status is written back to Sheets row (AC4.6)."""
-    with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets_write:
+    with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets_write:
         mock_sheets_write.return_value = "4"
-        with patch("app.services.sheets_sync._update_sync_status") as mock_update:
+        with patch("app.services.sheets_sync.update_sync_status") as mock_update:
             with patch("app.services.quickbooks_sync.sync") as mock_qb:
                 mock_qb.return_value = SyncResult(
                     qb_bill_id="QB-111",
@@ -123,7 +123,7 @@ async def test_sync_all_backfill_sync_status(client):
                     response = client.post("/sync", json=req_data)
 
                     assert response.status_code == 200
-                    # Verify _update_sync_status was called with final status
+                    # Verify update_sync_status was called with final status
                     mock_update.assert_called_once()
                     call_args = mock_update.call_args
                     # check that sync_status contains all three targets
@@ -136,7 +136,7 @@ async def test_sync_all_backfill_sync_status(client):
 @pytest.mark.asyncio
 async def test_sync_all_sheets_failure_still_attempts_other_targets(client):
     """Verify Sheets write failure doesn't prevent QB/Jobber from running."""
-    with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets_write:
+    with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets_write:
         mock_sheets_write.side_effect = Exception("Sheets error")
         with patch("app.services.quickbooks_sync.sync") as mock_qb:
             mock_qb.return_value = SyncResult(
@@ -165,9 +165,9 @@ async def test_sync_all_sheets_failure_still_attempts_other_targets(client):
 @pytest.mark.asyncio
 async def test_sync_all_returns_all_ids_on_success(client):
     """Verify SyncResult contains all three IDs when all targets succeed (AC4.6)."""
-    with patch("app.services.sheets_sync._write_invoice_row") as mock_sheets_write:
+    with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets_write:
         mock_sheets_write.return_value = "5"
-        with patch("app.services.sheets_sync._update_sync_status"):
+        with patch("app.services.sheets_sync.update_sync_status"):
             with patch("app.services.quickbooks_sync.sync") as mock_qb:
                 mock_qb.return_value = SyncResult(
                     qb_bill_id="QB-555",

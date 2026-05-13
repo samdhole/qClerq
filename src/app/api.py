@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from app.config import Settings, get_settings
+
+logger = logging.getLogger(__name__)
 from app.schemas.invoice import (
     InvoiceExtracted,
     SyncRequest,
@@ -56,8 +59,8 @@ async def extract_invoice(
             get_known_hashes, settings.sheet_id, settings.google_service_account_json
         )
         result.duplicate_risk = check_duplicate(file_hash, known)
-    except Exception:
-        pass  # best-effort — do not block extraction if Sheets is unreachable
+    except Exception as e:
+        logger.warning(f"Dedupe check failed (best-effort): {e}", exc_info=True)
 
     return result
 
@@ -84,8 +87,8 @@ async def validate_invoice(
                 validation.exceptions,
                 settings.google_service_account_json,
             )
-        except Exception:
-            pass  # best-effort — validation result is still returned to caller
+        except Exception as e:
+            logger.warning(f"Failed to write exceptions to Sheets (best-effort): {e}", exc_info=True)
 
     return validation
 
@@ -119,12 +122,12 @@ async def sync_all(
     sheets_row_id: str | None = None
     qb_bill_id: str | None = None
     jobber_expense_id: str | None = None
-    sync_status: dict[str, str] = {"sheets": "pending", "quickbooks": "pending", "jobber": "pending"}
+    sync_status: dict[str, str] = {}
 
     # 1. Write Sheets row first — establishes the audit record before any sync attempt.
     try:
         sheets_row_id = await asyncio.to_thread(
-            sheets_sync._write_invoice_row,
+            sheets_sync.write_invoice_row,
             settings.sheet_id,
             req,
             None,
@@ -133,7 +136,8 @@ async def sync_all(
             settings.google_service_account_json,
         )
         sync_status["sheets"] = "ok"
-    except Exception:
+    except Exception as e:
+        logger.error(f"Sheets write failed: {e}", exc_info=True)
         sync_status["sheets"] = "failed"
 
     # 2. QB sync — failure does not block Jobber (AC4.4).
@@ -141,7 +145,8 @@ async def sync_all(
         qb_result = await quickbooks_sync.sync(req, settings)
         qb_bill_id = qb_result.qb_bill_id
         sync_status["quickbooks"] = qb_result.sync_status.get("quickbooks", "ok")
-    except Exception:
+    except Exception as e:
+        logger.error(f"QuickBooks sync failed: {e}", exc_info=True)
         sync_status["quickbooks"] = "failed"
 
     # 3. Jobber sync — failure does not affect QB or Sheets (AC4.5).
@@ -149,14 +154,15 @@ async def sync_all(
         jobber_result = await jobber_sync.sync(req, settings)
         jobber_expense_id = jobber_result.jobber_expense_id
         sync_status["jobber"] = jobber_result.sync_status.get("jobber", "ok")
-    except Exception:
+    except Exception as e:
+        logger.error(f"Jobber sync failed: {e}", exc_info=True)
         sync_status["jobber"] = "failed"
 
     # 4. Backfill Sheets row with final IDs and sync_status (AC4.6, AC6.1).
     if sheets_row_id is not None:
         try:
             await asyncio.to_thread(
-                sheets_sync._update_sync_status,
+                sheets_sync.update_sync_status,
                 settings.sheet_id,
                 int(sheets_row_id),
                 sync_status,
@@ -164,8 +170,8 @@ async def sync_all(
                 jobber_expense_id,
                 settings.google_service_account_json,
             )
-        except Exception:
-            pass  # best-effort — row already exists, partial data is better than nothing
+        except Exception as e:
+            logger.warning(f"Sheets backfill failed (best-effort): {e}", exc_info=True)
 
     return SyncResult(
         sheets_row_id=sheets_row_id,
