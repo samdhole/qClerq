@@ -1,5 +1,5 @@
 # Human Test Plan — qClerq AI Invoice Pipeline
-# Generated: 2026-05-13 | Updated: 2026-05-14 | Automated coverage: 26/26 ACs | Tests: 114 passed
+# Generated: 2026-05-13 | Updated: 2026-05-14 | Automated coverage: 26/26 ACs | Tests: 114 passed | Manual: P1.3 P2.1-2.5 P3.1 P5.1 P5.3 P6.3 ✅
 
 ## Prerequisites
 
@@ -19,11 +19,11 @@
 | Phase | Status | Notes |
 |-------|--------|-------|
 | Prerequisites | ✅ Done | `.env` set, backend on 9100, 114 tests passing, Sheets headers written |
-| Phase 1 — Intake triggers | ❌ Pending | n8n not yet imported/configured |
-| Phase 2 — Approval routing | ❌ Pending | n8n not yet configured |
-| Phase 3 — Proof trail | ⚠️ Partial | Sheets row written; QB/Jobber IDs null (no creds) |
+| Phase 1 — Intake triggers | ⚠️ Partial | 1.3 ✅ Web Upload Form (exec #78, Invoice-9723.pdf, $23.40 EUR, auto-approved → Sheets); 1.1/1.2/1.4 pending |
+| Phase 2 — Approval routing | ✅ Done | 2.1 ✅ auto (exec #78); 2.2 ✅ manager email (exec #90); 2.3 ✅ CFO email (exec #91, MES-2026-0089 $7,500); 2.4 ✅ approved_by/notes/at on Sheets row 5; 2.5 ✅ rejection email sent, no sync |
+| Phase 3 — Proof trail | ⚠️ Partial | Sheets row 5: approved_by, approved_at, file_hash all present; QB/Jobber IDs null (no creds) |
 | Phase 4 — Failure isolation | ❌ Pending | Requires QB/Jobber creds |
-| Phase 5 — Duplicates/low-conf | ⚠️ Partial | Math error path tested (IKEA); duplicate + low-conf pending |
+| Phase 5 — Duplicates/low-conf | ⚠️ Partial | 5.1 ✅ duplicate detected (exec #92, POS-2026-0201 hash match → Exceptions row 14); 5.3 ✅ math error (IKEA); 5.2 low-conf pending |
 | Phase 6 — Weekly report | ✅ Done | `/report/weekly` returns 200 with live data |
 | E2E happy path | ✅ Done | Extract → validate → approval-callback → Sheets row confirmed |
 
@@ -35,7 +35,7 @@
 |------|--------|----------|
 | 1.1 | Send email to monitored Gmail inbox with valid PDF attached (AC1.1) | n8n `Monitor Gmail Invoices` fires; `POST /extract` returns 200 |
 | 1.2 | Drop PDF into monitored Drive folder (AC1.2) | `Invoice Folder Monitor` triggers; `Download Invoice PDF` succeeds; `/extract` called |
-| 1.3 | Submit Web Upload Form with valid PDF (AC1.3) | Form submits; n8n routes to `/extract`; 200 returned |
+| 1.3 ✅ | Submit Web Upload Form with valid PDF (AC1.3) — confirmed 2026-05-14 exec #78: Invoice-9723.pdf (Minerva Networks, $23.40 EUR) | Form submits; n8n routes to `/extract`; 200 returned; all 7 nodes green |
 | 1.4 | Send `.docx` or `.png` via monitored Gmail (AC1.4) | n8n filter drops before `/extract`. Force-test: `curl -X POST http://127.0.0.1:9100/extract -H "X-API-Key: <key>" -F "file=@something.docx"` returns 415 |
 
 ---
@@ -44,11 +44,11 @@
 
 | Step | Action | Expected |
 |------|--------|----------|
-| 2.1 | Upload PDF with total < $500 via Web Form | `/validate` returns `approval_tier="auto"` (AC3.1); no approval email; `/sync` runs immediately; Sheets row created |
-| 2.2 | Upload PDF with total $500–$5000 | `approval_tier="manager"` (AC3.2); approval email arrives with Approve/Reject links |
-| 2.3 | Upload PDF with total > $5000 | `approval_tier="cfo"` (AC3.3); CFO approval email arrives |
-| 2.4 | Click "Approve" in the manager email (AC3.4) | Sheets row gains `approved_by`, `approval_notes`, `approved_at` (ISO timestamp); success page shown |
-| 2.5 | Click "Reject" on a separate invoice | Rejection notification email sent to submitter; no sync to QB/Jobber |
+| 2.1 ✅ | Upload PDF with total < $500 via Web Form — confirmed 2026-05-14 exec #78 (Invoice-9723.pdf, $23.40 EUR) | `/validate` returns `approval_tier="auto"` (AC3.1); no approval email; `/sync` runs immediately; Sheets row created |
+| 2.2 ✅ | Upload PDF with total $500–$5000 — confirmed 2026-05-14 exec #90: Invoice-POS-2026-0201-manager.pdf (Pinnacle Office Supplies, $2,150 USD) | `approval_tier="manager"` (AC3.2); approval email arrives with Approve/Reject links |
+| 2.3 ✅ | Upload PDF with total > $5000 — confirmed 2026-05-14 exec #91: Invoice-MES-2026-0089-cfo.pdf (Meridian Enterprise Solutions, $7,500 USD) | `approval_tier="cfo"` (AC3.3); CFO approval email arrived |
+| 2.4 ✅ | Click "Approve" in the manager email — confirmed 2026-05-14 exec #90, Sheets row 5 | Sheets row gains `approved_by=enigman.kk@gmail.com`, `approval_notes`, `approved_at` (ISO timestamp); success page shown |
+| 2.5 ✅ | Click "Reject" on CFO invoice (exec #91) — confirmed 2026-05-14 | Rejection email `[Rejected] Invoice from Meridian Enterprise Solutions Inc.` sent; no `Call /approval-callback` or sync executed |
 
 ---
 
@@ -79,7 +79,7 @@ Pick an approved invoice from step 2.1.
 
 | Step | Action | Expected |
 |------|--------|----------|
-| 5.1 | Upload the same PDF from step 2.1 a second time (AC1.5) | `Exceptions` tab: new row with `issue_type="duplicate"`, `duplicate_risk="likely"`, `status="open"` |
+| 5.1 ✅ | Upload the same PDF from step 2.1 a second time (AC1.5) — confirmed 2026-05-14 exec #92: POS-2026-0201 re-uploaded | `Exceptions` tab row 14: `issue_type="duplicate_risk"`, `duplicate_risk="likely"`, `status="open"` |
 | 5.2 | Upload handwritten / low-res scan (AC2.6) | `Exceptions` row with `issue_type="low_confidence"`, severity set, `status="open"` |
 | 5.3 ✅ | Upload PDF where subtotal+tax ≠ total — tested with IKEA CAINV26000001413522 (2026-05-14) | `Exceptions` row with `issue_type="math_error"` confirmed; 6 exceptions flagged (AC2.4) |
 
