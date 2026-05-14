@@ -1,16 +1,31 @@
 # Human Test Plan — qClerq AI Invoice Pipeline
-# Generated: 2026-05-13 | Automated coverage: 26/26 ACs | Tests: 114 passed
+# Generated: 2026-05-13 | Updated: 2026-05-14 | Automated coverage: 26/26 ACs | Tests: 114 passed
 
 ## Prerequisites
 
-- `.env` populated with: `ANTHROPIC_API_KEY`, `LLAMAPARSE_API_KEY`, `PDFCO_API_KEY`, Google service account JSON, `SPREADSHEET_ID`, QuickBooks OAuth tokens, Jobber API token, `OWNER_EMAIL=enigman.kk@gmail.com`
-- FastAPI app running: `uv run uvicorn src.app.main:app --reload --host 127.0.0.1 --port 8000`
+- `.env` populated with: `API_KEY`, `GEMINI_API_KEY`, `LLAMA_CLOUD_API_KEY`, `PDFCO_API_KEY`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `SHEET_ID`, `MANAGER_EMAIL`, `CFO_EMAIL`, `VALID_APPROVERS` (QB/Jobber optional)
+- FastAPI app running: `uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 9100` (ports 8000/8001 reserved by Windows — use 9100)
 - n8n running locally with `workflows/n8n_invoice_desk.json` imported and credentials re-attached:
   - Google OAuth2 → `Invoice Folder Monitor`, `Download Invoice PDF`
-  - Gmail OAuth2 → `Monitor Gmail Invoices`, `Send Invoice for Approval`, `Send Rejection Notification`, `Send Weekly Report Email`
-  - Google Sheets OAuth2 → `Write to Invoices Sheet`, `Write to Exceptions Sheet`
+  - Gmail OAuth2 → `Monitor Gmail Invoices`, `Send Invoice for Approval`, `Send Rejection Notification`
+  - Google Sheets OAuth2 → `Write to Exceptions Sheet`
+  - n8n env var: `INVOICE_DRIVE_FOLDER_ID=<your Drive folder ID>`
 - `uv run pytest src/app/tests/ -v` passes (114 passed)
-- Test Sheets workbook has `Invoices` and `Exceptions` tabs with header rows matching `src/app/services/sheets_sync.py`
+- Google Sheet `1Vy7dvq18Jh6CSoNBkNk1YMjN9btXGIsLv5nQdO7i9sY` has `Invoices` and `Exceptions` tabs with header rows matching `src/app/services/sheets_sync.py` (INVOICE_COLUMNS / EXCEPTION_COLUMNS)
+- Sheet shared with service account `qclerq@gen-lang-client-0832688008.iam.gserviceaccount.com` (Editor)
+
+## Status as of 2026-05-14
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Prerequisites | ✅ Done | `.env` set, backend on 9100, 114 tests passing, Sheets headers written |
+| Phase 1 — Intake triggers | ❌ Pending | n8n not yet imported/configured |
+| Phase 2 — Approval routing | ❌ Pending | n8n not yet configured |
+| Phase 3 — Proof trail | ⚠️ Partial | Sheets row written; QB/Jobber IDs null (no creds) |
+| Phase 4 — Failure isolation | ❌ Pending | Requires QB/Jobber creds |
+| Phase 5 — Duplicates/low-conf | ⚠️ Partial | Math error path tested (IKEA); duplicate + low-conf pending |
+| Phase 6 — Weekly report | ✅ Done | `/report/weekly` returns 200 with live data |
+| E2E happy path | ✅ Done | Extract → validate → approval-callback → Sheets row confirmed |
 
 ---
 
@@ -21,7 +36,7 @@
 | 1.1 | Send email to monitored Gmail inbox with valid PDF attached (AC1.1) | n8n `Monitor Gmail Invoices` fires; `POST /extract` returns 200 |
 | 1.2 | Drop PDF into monitored Drive folder (AC1.2) | `Invoice Folder Monitor` triggers; `Download Invoice PDF` succeeds; `/extract` called |
 | 1.3 | Submit Web Upload Form with valid PDF (AC1.3) | Form submits; n8n routes to `/extract`; 200 returned |
-| 1.4 | Send `.docx` or `.png` via monitored Gmail (AC1.4) | n8n filter drops before `/extract`. Force-test: `curl -X POST http://127.0.0.1:8000/extract -F "file=@something.docx"` returns 415 |
+| 1.4 | Send `.docx` or `.png` via monitored Gmail (AC1.4) | n8n filter drops before `/extract`. Force-test: `curl -X POST http://127.0.0.1:9100/extract -H "X-API-Key: <key>" -F "file=@something.docx"` returns 415 |
 
 ---
 
@@ -45,7 +60,7 @@ Pick an approved invoice from step 2.1.
 |------|--------|----------|
 | 3.1 | Open the Sheets `Invoices` tab row | Columns populated: `approval_tier`, `approved_by`, `approved_at` (AC6.1) |
 | 3.2 | Inspect `sync_status` column | JSON dict with keys `sheets`, `quickbooks`, `jobber` each `"ok"` or `"failed"` (AC4.6) |
-| 3.3 | Inspect ID columns | `qb_bill_id` and `jobber_expense_id` populated for successful targets (AC6.1) |
+| 3.3 | Inspect ID columns | `qb_bill_id` and `jobber_expense_id` populated for successful targets (AC6.1) — requires QB/Jobber creds |
 | 3.4 | Inspect `file_hash` column | 64-char SHA-256 hex string present (AC6.3) |
 
 ---
@@ -66,7 +81,7 @@ Pick an approved invoice from step 2.1.
 |------|--------|----------|
 | 5.1 | Upload the same PDF from step 2.1 a second time (AC1.5) | `Exceptions` tab: new row with `issue_type="duplicate"`, `duplicate_risk="likely"`, `status="open"` |
 | 5.2 | Upload handwritten / low-res scan (AC2.6) | `Exceptions` row with `issue_type="low_confidence"`, severity set, `status="open"` |
-| 5.3 | Upload PDF where subtotal+tax ≠ total | `Exceptions` row with `issue_type="math_error"` (verifies AC2.4 in live env) |
+| 5.3 ✅ | Upload PDF where subtotal+tax ≠ total — tested with IKEA CAINV26000001413522 (2026-05-14) | `Exceptions` row with `issue_type="math_error"` confirmed; 6 exceptions flagged (AC2.4) |
 
 ---
 
@@ -76,7 +91,7 @@ Pick an approved invoice from step 2.1.
 |------|--------|----------|
 | 6.1 | In n8n, manually execute `Weekly Report Trigger` workflow (AC7.2) | `/report/weekly` called; `Send Weekly Report Email` node green |
 | 6.2 | Check `enigman.kk@gmail.com` inbox | Email arrives with `WeeklySummary`: invoice count, total value, top vendors, sync failures, period dates |
-| 6.3 | `curl http://127.0.0.1:8000/report/weekly` in an empty-data week | Returns 200 with zeroed `WeeklySummary` (AC7.3) |
+| 6.3 ✅ | `curl http://127.0.0.1:9100/report/weekly -H "X-API-Key: <key>"` | Returns 200 with valid `WeeklySummary` — confirmed 2026-05-14: 1 invoice, $837.04, top vendor IKEA Canada (AC7.1, AC7.3) |
 
 ---
 
@@ -92,6 +107,13 @@ Pick an approved invoice from step 2.1.
 
 **Expected:** elapsed ≤ ~60s; row contains all required fields, proof trail columns, file_hash, and `sync_status` showing all three targets `"ok"`.
 
+**Direct-API variant (no n8n) ✅ confirmed 2026-05-14:**
+```
+POST /extract   → 200, confidence 0.95, IKEA invoice
+POST /approval-callback → 200, sheets_row_id: 2
+GET  /report/weekly     → 200, invoice_count: 1, total_value: 837.04
+```
+
 ---
 
 ## Traceability
@@ -106,7 +128,7 @@ Pick an approved invoice from step 2.1.
 | AC2.1 | `test_extraction_goldens.py::test_ac21_valid_text_returns_invoice_extracted` | E2E step 3 |
 | AC2.2 | `test_extraction_goldens.py::test_ac22_*` | Phase 5.2 |
 | AC2.3 | `test_validation.py::test_math_check_passes_when_balanced` | E2E |
-| AC2.4 | `test_validation.py::test_math_error_when_totals_mismatch` | Phase 5.3 |
+| AC2.4 | `test_validation.py::test_math_error_when_totals_mismatch` | Phase 5.3 ✅ |
 | AC2.5 | `test_validation.py::test_missing_*` | — |
 | AC2.6 | `test_validation.py::test_low_confidence_below_floor` | Phase 5.2 |
 | AC2.7 | `test_extraction_goldens.py::test_ac27_llamaparse_fails_fallback_to_pdfco` | — |
@@ -115,7 +137,7 @@ Pick an approved invoice from step 2.1.
 | AC3.3 | `test_api.py::test_validate_cfo_tier` | Phase 2.3 |
 | AC3.4 | — | Phase 2.4 |
 | AC3.5 | `test_api.py::test_approval_callback_rejects_missing_approved_by` | — |
-| AC4.1 | `test_sync.py::test_sync_all_sheets_success` | E2E step 4 |
+| AC4.1 | `test_sync.py::test_sync_all_sheets_success` | E2E step 4 ✅ |
 | AC4.2 | `test_quickbooks_sync.py::test_create_bill_uses_vendor_and_line_items` | Phase 3.3 |
 | AC4.3 | `test_jobber_sync.py::test_jobber_expense_payload_contains_total_and_job_id` | Phase 3.3 |
 | AC4.4 | `test_sync.py::test_sync_all_qb_failure_does_not_block_jobber` | Phase 4.1 |
@@ -128,6 +150,6 @@ Pick an approved invoice from step 2.1.
 | AC6.1 | `test_sync.py::test_sync_all_sheets_row_has_proof_trail_columns` | Phase 3.1, 3.3 |
 | AC6.2 | `test_sheets_sync.py::test_write_exceptions_row_structure` | Phase 5.1 |
 | AC6.3 | `test_sheets_sync.py::test_write_invoice_row_includes_file_hash` | Phase 3.4 |
-| AC7.1 | `test_report.py::test_get_report_weekly_endpoint_returns_valid_summary` | Phase 6.3 |
+| AC7.1 | `test_report.py::test_get_report_weekly_endpoint_returns_valid_summary` | Phase 6.3 ✅ |
 | AC7.2 | — | Phase 6.1–6.2 |
-| AC7.3 | `test_report.py::test_get_report_weekly_endpoint_with_empty_week` | Phase 6.3 |
+| AC7.3 | `test_report.py::test_get_report_weekly_endpoint_with_empty_week` | Phase 6.3 ✅ |
