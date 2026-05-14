@@ -27,18 +27,9 @@ def parse_pdf(pdf_bytes: bytes, filename: str, api_key: str) -> str:
             raise RuntimeError(
                 f"llamaparse upload failed: {upload_resp.status_code} {upload_resp.text}"
             )
-        file_id = upload_resp.json()["file_id"]
+        job_id = upload_resp.json()["id"]
 
-        parse_resp = client.post(
-            "/api/v2/parse",
-            json={"file_id": file_id, "tier": "agentic", "version": "latest"},
-        )
-        if parse_resp.status_code != 200:
-            raise RuntimeError(
-                f"llamaparse parse job failed: {parse_resp.status_code} {parse_resp.text}"
-            )
-        job_id = parse_resp.json()["job"]["id"]
-
+        # v2 API: upload starts the parse job; poll the same job ID for results
         for _ in range(_MAX_POLLS):
             result_resp = client.get(f"/api/v2/parse/{job_id}?expand=text_full")
             if result_resp.status_code != 200:
