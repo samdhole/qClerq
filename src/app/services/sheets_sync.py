@@ -153,7 +153,7 @@ def get_known_invoice_data(
     gc = _get_client(service_account_json)
     sh = gc.open_by_key(sheet_id)
     ws = sh.worksheet(_INVOICES_SHEET)
-    all_rows = ws.get_all_records()
+    all_rows = ws.get_all_records(expected_headers=INVOICE_COLUMNS)
 
     known_hashes: set[str] = set()
     known_invoices: list[KnownInvoice] = []

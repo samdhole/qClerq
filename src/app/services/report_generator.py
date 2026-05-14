@@ -41,8 +41,9 @@ def _generate_sync(
     gc = _get_sheets_client(service_account_json)
     sh = gc.open_by_key(sheet_id)
 
+    from app.services.sheets_sync import INVOICE_COLUMNS
     inv_ws = sh.worksheet("Invoices")
-    all_rows = inv_ws.get_all_records()
+    all_rows = inv_ws.get_all_records(expected_headers=INVOICE_COLUMNS)
 
     period_rows = [
         r
@@ -70,8 +71,9 @@ def _generate_sync(
     top_vendors = [vendor for vendor, _ in vendor_counts.most_common(5)]
 
     try:
+        from app.services.sheets_sync import EXCEPTION_COLUMNS
         exc_ws = sh.worksheet("Exceptions")
-        exc_rows = exc_ws.get_all_records()
+        exc_rows = exc_ws.get_all_records(expected_headers=EXCEPTION_COLUMNS)
         exc_in_period = [
             r
             for r in exc_rows
