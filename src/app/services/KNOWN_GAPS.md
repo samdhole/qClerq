@@ -2,6 +2,17 @@
 
 This document tracks explicitly acknowledged gaps and limitations in the qClerq invoice system.
 
+## Gemini Model Pin
+
+**Status:** Hard-coded constant
+
+Extraction uses `gemini-3.1-flash-lite`, defined as `GEMINI_MODEL` in `src/app/config.py`. Vendor matcher LLM fallback also calls Gemini via `genai.Client`. Model changes should be coordinated across:
+
+1. `src/app/config.py` — update `GEMINI_MODEL` constant
+2. `src/app/services/extractor_gemini.py` — uses `GEMINI_MODEL` as default arg
+3. `src/app/services/vendor_matcher.py` — instantiates `genai.Client` directly
+4. Re-run full test suite and validate extraction quality after any model change
+
 ## Jobber GraphQL Field Names
 
 **Status:** Unverified against live schema
@@ -40,27 +51,18 @@ If multi-worker deployments are planned:
 
 Affected code: `src/app/services/vendor_matcher.py` (lines 13, 81-84)
 
-## Model Pin: Claude Sonnet 4.6
-
-**Status:** Hard-coded constant
-
-All LLM calls (extraction and vendor resolution) use `claude-sonnet-4-6`, defined as `CLAUDE_MODEL` in `src/app/config.py`. Model changes should be coordinated across:
-
-1. `src/app/config.py` — update `CLAUDE_MODEL` constant
-2. `src/app/services/extractor_claude.py` — uses `CLAUDE_MODEL` directly at the `client.messages.create` call site
-3. `src/app/services/vendor_matcher.py` — uses `CLAUDE_MODEL` in `_llm_resolve`
-4. Re-run full test suite and validate extraction quality after any model change
-
 ## Test Coverage
 
 Current test suite covers:
 - Sync flow orchestration (Sheets, QB, Jobber independence)
 - Validation tier assignment and exception routing
-- Extraction fallback (LlamaParse → PDF.co)
+- Extraction (Gemini native PDF vision via mocked `google.genai.Client`)
+- Vendor normalization cascade (exact, fuzzy, LLM, fallback)
 
 Not yet covered by automated tests:
 - Live QB API integration (mocked in tests)
 - Live Jobber GraphQL schema (mocked in tests)
 - Live Google Sheets sync (mocked in tests)
+- Gmail/Drive intake triggers (n8n configuration — manual test only)
 
 Manual integration testing required before production deployment.

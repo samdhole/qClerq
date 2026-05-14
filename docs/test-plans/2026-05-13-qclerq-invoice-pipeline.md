@@ -1,9 +1,9 @@
 # Human Test Plan — qClerq AI Invoice Pipeline
-# Generated: 2026-05-13 | Updated: 2026-05-14 | Automated coverage: 26/26 ACs | Tests: 114 passed | Manual: P1.3 P2.1-2.5 P3.1 P5.1 P5.3 P6.3 ✅
+# Generated: 2026-05-13 | Updated: 2026-05-14 | Automated coverage: 26/26 ACs | Tests: 112 passed | Manual: P1.3 P2.1-2.5 P3.1 P5.1 P5.3 P6.3 ✅
 
 ## Prerequisites
 
-- `.env` populated with: `API_KEY`, `GEMINI_API_KEY`, `LLAMA_CLOUD_API_KEY`, `PDFCO_API_KEY`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `SHEET_ID`, `MANAGER_EMAIL`, `CFO_EMAIL`, `VALID_APPROVERS` (QB/Jobber optional)
+- `.env` populated with: `API_KEY`, `GEMINI_API_KEY`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `SHEET_ID`, `MANAGER_EMAIL`, `CFO_EMAIL`, `VALID_APPROVERS` (QB/Jobber optional)
 - FastAPI app running: `uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 9100` (ports 8000/8001 reserved by Windows — use 9100)
 - n8n running locally with `workflows/n8n_invoice_desk.json` imported and credentials re-attached:
   - Google OAuth2 → `Invoice Folder Monitor`, `Download Invoice PDF`
