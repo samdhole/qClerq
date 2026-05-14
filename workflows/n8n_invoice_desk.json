@@ -23,7 +23,7 @@
         "folderToWatch": {
           "__rl": true,
           "mode": "id",
-          "value": "={{$env.INVOICE_DRIVE_FOLDER_ID}}"
+          "value": "1ROpuMVk-dBzw4ttxDzmnm-28kJz5AwS1"
         }
       },
       "credentials": {
