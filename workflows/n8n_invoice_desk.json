@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "qClerq - AI Invoice Desk",
   "nodes": [
     {
@@ -372,7 +372,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/extract",
+        "url": "http://localhost:9100/extract",
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {
@@ -398,7 +398,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/validate",
+        "url": "http://localhost:9100/validate",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
@@ -501,7 +501,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/sync",
+        "url": "http://localhost:9100/sync",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
@@ -520,7 +520,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/approval-callback",
+        "url": "http://localhost:9100/approval-callback",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
@@ -617,7 +617,7 @@
       ],
       "parameters": {
         "method": "GET",
-        "url": "http://localhost:8000/report/weekly",
+        "url": "http://localhost:9100/report/weekly",
         "options": {}
       }
     },
@@ -632,7 +632,7 @@
       ],
       "parameters": {
         "sendTo": "enigman.kk@gmail.com",
-        "subject": "=Weekly Invoice Report — {{ new Date().toLocaleDateString() }}",
+        "subject": "=Weekly Invoice Report â€” {{ new Date().toLocaleDateString() }}",
         "emailType": "text",
         "message": "=Weekly Invoice Report\n\nPeriod: {{ $json.period_start }} to {{ $json.period_end }}\nInvoices: {{ $json.invoice_count }}\nTotal Value: ${{ $json.total_value.toFixed(2) }}\nException Rate: {{ ($json.exception_rate * 100).toFixed(1) }}%\nSync Failures: {{ JSON.stringify($json.sync_failures) }}\nTop Vendors: {{ $json.top_vendors.join(', ') }}"
       },
