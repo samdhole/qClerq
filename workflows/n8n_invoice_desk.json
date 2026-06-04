@@ -1,5 +1,5 @@
 ﻿{
-    "updatedAt":  "2026-06-04T19:37:50.950Z",
+    "updatedAt":  "2026-06-04T19:49:43.584Z",
     "createdAt":  "2026-05-14T04:14:08.619Z",
     "id":  "QCG7orEdmyfZlUpx",
     "name":  "qClerq - AI Invoice Desk",
@@ -243,18 +243,46 @@
                                                            "value":  "Exceptions"
                                                        },
                                          "columns":  {
-                                                         "value":  {
-                                                                       "invoice_id":  "={{$(\u0027Call /extract API\u0027).item.json.invoice_number}}",
-                                                                       "issue_type":  "={{ $json.output.missing_required_fields.length ? \u0027missing_fields\u0027 : $json.output.duplicate_risk !== \u0027none\u0027 ? \u0027duplicate_risk\u0027 : \u0027low_confidence\u0027 }}",
-                                                                       "severity":  "high",
-                                                                       "message":  "={{ ($json.output.warnings || []).join(\u0027; \u0027) || ($json.output.missing_required_fields || []).join(\u0027, \u0027) }}",
-                                                                       "status":  "open"
-                                                                   },
                                                          "mappingMode":  "defineBelow",
+                                                         "value":  {
+                                                                       "file_hash":  "={{ $(\u0027Call /extract API\u0027).item.json.file_hash }}",
+                                                                       "file_name":  "={{ $(\u0027Call /extract API\u0027).item.json.file_name }}",
+                                                                       "vendor_normalized":  "={{ $(\u0027Call /extract API\u0027).item.json.vendor_normalized }}",
+                                                                       "invoice_number":  "={{ $(\u0027Call /extract API\u0027).item.json.invoice_number }}",
+                                                                       "issue_type":  "={{ ($json.exceptions \u0026\u0026 $json.exceptions[0]) ? $json.exceptions[0].type : ($(\u0027Call /extract API\u0027).item.json.duplicate_risk !== \u0027none\u0027 ? \u0027duplicate_risk\u0027 : \u0027low_confidence\u0027) }}",
+                                                                       "severity":  "={{ ($json.exceptions \u0026\u0026 $json.exceptions[0]) ? $json.exceptions[0].severity : \u0027high\u0027 }}",
+                                                                       "message":  "={{ ($json.exceptions || []).map(e =\u003e e.message).join(\u0027; \u0027) || $(\u0027Call /extract API\u0027).item.json.warnings.join(\u0027; \u0027) || \u0027Exception detected\u0027 }}",
+                                                                       "status":  "open",
+                                                                       "created_at":  "={{ new Date().toISOString() }}"
+                                                                   },
                                                          "schema":  [
                                                                         {
-                                                                            "id":  "invoice_id",
-                                                                            "displayName":  "invoice_id",
+                                                                            "id":  "file_hash",
+                                                                            "displayName":  "file_hash",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "type":  "string"
+                                                                        },
+                                                                        {
+                                                                            "id":  "file_name",
+                                                                            "displayName":  "file_name",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "type":  "string"
+                                                                        },
+                                                                        {
+                                                                            "id":  "vendor_normalized",
+                                                                            "displayName":  "vendor_normalized",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "type":  "string"
+                                                                        },
+                                                                        {
+                                                                            "id":  "invoice_number",
+                                                                            "displayName":  "invoice_number",
                                                                             "required":  false,
                                                                             "defaultMatch":  false,
                                                                             "canBeUsedToMatch":  true,
@@ -287,6 +315,14 @@
                                                                         {
                                                                             "id":  "status",
                                                                             "displayName":  "status",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "type":  "string"
+                                                                        },
+                                                                        {
+                                                                            "id":  "created_at",
+                                                                            "displayName":  "created_at",
                                                                             "required":  false,
                                                                             "defaultMatch":  false,
                                                                             "canBeUsedToMatch":  true,
@@ -1040,7 +1076,7 @@
                                                                               ]
                                                       },
                        "node:Invoice Folder Monitor":  {
-                                                           "lastTimeChecked":  "2026-06-04T19:41:16Z"
+                                                           "lastTimeChecked":  "2026-06-04T19:52:22Z"
                                                        },
                        "node:Monitor Gmail Invoices":  {
                                                            "Monitor Gmail Invoices":  {
@@ -1056,9 +1092,9 @@
     "pinData":  {
 
                 },
-    "versionId":  "b7829220-8279-4748-b26a-392a48563efc",
-    "activeVersionId":  "b7829220-8279-4748-b26a-392a48563efc",
-    "versionCounter":  170,
+    "versionId":  "3af4a7b4-53b5-451a-9220-93127d66d524",
+    "activeVersionId":  "3af4a7b4-53b5-451a-9220-93127d66d524",
+    "versionCounter":  177,
     "triggerCount":  4,
     "shared":  [
                    {
@@ -1083,9 +1119,9 @@
 
              ],
     "activeVersion":  {
-                          "updatedAt":  "2026-06-04T19:37:50.952Z",
-                          "createdAt":  "2026-06-04T19:37:50.952Z",
-                          "versionId":  "b7829220-8279-4748-b26a-392a48563efc",
+                          "updatedAt":  "2026-06-04T19:49:43.586Z",
+                          "createdAt":  "2026-06-04T19:49:43.586Z",
+                          "versionId":  "3af4a7b4-53b5-451a-9220-93127d66d524",
                           "workflowId":  "QCG7orEdmyfZlUpx",
                           "nodes":  [
                                         {
@@ -1324,18 +1360,46 @@
                                                                                  "value":  "Exceptions"
                                                                              },
                                                                "columns":  {
-                                                                               "value":  {
-                                                                                             "invoice_id":  "={{$(\u0027Call /extract API\u0027).item.json.invoice_number}}",
-                                                                                             "issue_type":  "={{ $json.output.missing_required_fields.length ? \u0027missing_fields\u0027 : $json.output.duplicate_risk !== \u0027none\u0027 ? \u0027duplicate_risk\u0027 : \u0027low_confidence\u0027 }}",
-                                                                                             "severity":  "high",
-                                                                                             "message":  "={{ ($json.output.warnings || []).join(\u0027; \u0027) || ($json.output.missing_required_fields || []).join(\u0027, \u0027) }}",
-                                                                                             "status":  "open"
-                                                                                         },
                                                                                "mappingMode":  "defineBelow",
+                                                                               "value":  {
+                                                                                             "file_hash":  "={{ $(\u0027Call /extract API\u0027).item.json.file_hash }}",
+                                                                                             "file_name":  "={{ $(\u0027Call /extract API\u0027).item.json.file_name }}",
+                                                                                             "vendor_normalized":  "={{ $(\u0027Call /extract API\u0027).item.json.vendor_normalized }}",
+                                                                                             "invoice_number":  "={{ $(\u0027Call /extract API\u0027).item.json.invoice_number }}",
+                                                                                             "issue_type":  "={{ ($json.exceptions \u0026\u0026 $json.exceptions[0]) ? $json.exceptions[0].type : ($(\u0027Call /extract API\u0027).item.json.duplicate_risk !== \u0027none\u0027 ? \u0027duplicate_risk\u0027 : \u0027low_confidence\u0027) }}",
+                                                                                             "severity":  "={{ ($json.exceptions \u0026\u0026 $json.exceptions[0]) ? $json.exceptions[0].severity : \u0027high\u0027 }}",
+                                                                                             "message":  "={{ ($json.exceptions || []).map(e =\u003e e.message).join(\u0027; \u0027) || $(\u0027Call /extract API\u0027).item.json.warnings.join(\u0027; \u0027) || \u0027Exception detected\u0027 }}",
+                                                                                             "status":  "open",
+                                                                                             "created_at":  "={{ new Date().toISOString() }}"
+                                                                                         },
                                                                                "schema":  [
                                                                                               {
-                                                                                                  "id":  "invoice_id",
-                                                                                                  "displayName":  "invoice_id",
+                                                                                                  "id":  "file_hash",
+                                                                                                  "displayName":  "file_hash",
+                                                                                                  "required":  false,
+                                                                                                  "defaultMatch":  false,
+                                                                                                  "canBeUsedToMatch":  true,
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                              {
+                                                                                                  "id":  "file_name",
+                                                                                                  "displayName":  "file_name",
+                                                                                                  "required":  false,
+                                                                                                  "defaultMatch":  false,
+                                                                                                  "canBeUsedToMatch":  true,
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                              {
+                                                                                                  "id":  "vendor_normalized",
+                                                                                                  "displayName":  "vendor_normalized",
+                                                                                                  "required":  false,
+                                                                                                  "defaultMatch":  false,
+                                                                                                  "canBeUsedToMatch":  true,
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                              {
+                                                                                                  "id":  "invoice_number",
+                                                                                                  "displayName":  "invoice_number",
                                                                                                   "required":  false,
                                                                                                   "defaultMatch":  false,
                                                                                                   "canBeUsedToMatch":  true,
@@ -1368,6 +1432,14 @@
                                                                                               {
                                                                                                   "id":  "status",
                                                                                                   "displayName":  "status",
+                                                                                                  "required":  false,
+                                                                                                  "defaultMatch":  false,
+                                                                                                  "canBeUsedToMatch":  true,
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                              {
+                                                                                                  "id":  "created_at",
+                                                                                                  "displayName":  "created_at",
                                                                                                   "required":  false,
                                                                                                   "defaultMatch":  false,
                                                                                                   "canBeUsedToMatch":  true,
@@ -2116,10 +2188,10 @@
                           "autosaved":  false,
                           "workflowPublishHistory":  [
                                                          {
-                                                             "createdAt":  "2026-06-04T19:37:51.912Z",
-                                                             "id":  137,
+                                                             "createdAt":  "2026-06-04T19:49:44.491Z",
+                                                             "id":  139,
                                                              "workflowId":  "QCG7orEdmyfZlUpx",
-                                                             "versionId":  "b7829220-8279-4748-b26a-392a48563efc",
+                                                             "versionId":  "3af4a7b4-53b5-451a-9220-93127d66d524",
                                                              "event":  "activated",
                                                              "userId":  "1e482a7c-a0a2-4fd5-b806-4d374e209ab4"
                                                          }
