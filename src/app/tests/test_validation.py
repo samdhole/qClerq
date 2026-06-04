@@ -74,20 +74,54 @@ class TestMathCheck:
         assert not any(e.type == "math_error" for e in result.exceptions)
 
     def test_math_tolerance_relative(self):
-        """Math check respects 2% relative tolerance."""
-        # Total $1000, 2% = $20 tolerance
-        # Calculated = $980.00, diff = $20.00, within tolerance
+        """Math check respects 0.5% relative tolerance (M-1)."""
+        # Total $1000, 0.5% = $5 tolerance
+        # Calculated = $995.00, diff = $5.00, within tolerance
         inv = make_invoice(
-            subtotal=900.0,
+            subtotal=915.0,
             tax=80.0,
             shipping=0.0,
             discount=0.0,
-            total=1000.0,  # calculated = 980, diff = 20 = max(0.02, 20)
+            total=1000.0,  # calculated = 995, diff = 5 = max(0.02, 1000 * 0.005)
         )
         result = validate(inv, TIER1_MAX, TIER2_MAX)
         # This is at the edge of tolerance, should pass
-        # 980 vs 1000 = 20 difference, tolerance is max(0.02, 1000 * 0.02) = 20
+        # 995 vs 1000 = 5 difference, tolerance is max(0.02, 1000 * 0.005) = 5
         assert result.is_clean is True
+
+    def test_tight_tolerance_flags_oversized_large_invoice(self):
+        """M-1: a discrepancy in the old 0.5%-2% blind spot is now flagged.
+
+        $10,000 invoice off by $100 (1%) passed under the old flat 2% window
+        (tolerance was $200). Under the tightened 0.5% relative tolerance the
+        window is $50, so this internal inconsistency is now caught.
+        """
+        inv = make_invoice(
+            subtotal=9900.0,
+            tax=0.0,
+            shipping=0.0,
+            discount=0.0,
+            total=10000.0,  # calculated = 9900, diff = 100 > $50 tolerance
+        )
+        result = validate(inv, TIER1_MAX, TIER2_MAX)
+        assert result.is_clean is False
+        assert any(e.type == "math_error" for e in result.exceptions)
+
+    def test_tight_tolerance_allows_close_large_invoice(self):
+        """M-1: a legitimately-close large invoice still validates clean.
+
+        $10,000 invoice off by $30 (0.3%) stays within the $50 (0.5%) window.
+        """
+        inv = make_invoice(
+            subtotal=9970.0,
+            tax=0.0,
+            shipping=0.0,
+            discount=0.0,
+            total=10000.0,  # calculated = 9970, diff = 30 < $50 tolerance
+        )
+        result = validate(inv, TIER1_MAX, TIER2_MAX)
+        assert result.is_clean is True
+        assert not any(e.type == "math_error" for e in result.exceptions)
 
 
 class TestRequiredFields:

@@ -90,6 +90,9 @@ def test_create_bill_uses_vendor_and_line_items():
                                 mock_vendor.Id = "VENDOR-123"
                                 mock_vendor_class.where.return_value = [mock_vendor]
 
+                                # No existing Bill — idempotency query returns empty so create proceeds
+                                mock_bill_class.where.return_value = []
+
                                 # Set up QB client mock
                                 mock_qb_instance = MagicMock()
                                 mock_qb_class.return_value = mock_qb_instance
@@ -129,7 +132,7 @@ def test_create_bill_uses_vendor_and_line_items():
                                 # Import and call the function
                                 from app.services.quickbooks_sync import _create_bill_sync
 
-                                bill_id = _create_bill_sync(sync_req, mock_settings, "1")
+                                bill_id, created = _create_bill_sync(sync_req, mock_settings, "1")
 
                                 # Verify Vendor lookup used normalized name
                                 assert mock_vendor_class.where.called
@@ -149,5 +152,124 @@ def test_create_bill_uses_vendor_and_line_items():
                                 # Verify bill.save was called with the QB instance
                                 assert bill_instance.save.called
 
-                                # Verify bill ID was returned
+                                # Verify bill ID was returned and it was a fresh create
                                 assert bill_id == "BILL-123"
+                                assert created is True
+
+
+def test_idempotent_retry_returns_existing_bill_without_creating():
+    """A retry of an already-synced invoice returns the existing Bill id and does
+    NOT create a second Bill (H-1 idempotency)."""
+    inv = make_test_invoice(file_hash="dup-hash-xyz", invoice_number="QB-DUP-001")
+    sync_req = SyncRequest(
+        invoice=inv,
+        approved_by="manager@test.local",
+        approval_notes="Test",
+        approved_at=datetime.now(timezone.utc),
+        approval_tier="manager",
+    )
+
+    mock_settings = MagicMock()
+    mock_settings.qb_client_id = "test-client-id"
+    mock_settings.qb_client_secret = "test-client-secret"
+    mock_settings.qb_refresh_token = "test-refresh-token"
+    mock_settings.qb_realm_id = "test-realm-id"
+    mock_settings.qb_default_expense_account_id = "1"
+
+    with patch("intuitlib.client.AuthClient"):
+        with patch("quickbooks.QuickBooks") as mock_qb_class:
+            with patch("quickbooks.objects.vendor.Vendor") as mock_vendor_class:
+                with patch("quickbooks.objects.bill.Bill") as mock_bill_class:
+                    mock_qb_class.return_value = MagicMock()
+
+                    # An existing Bill tagged with this invoice's file_hash is found.
+                    existing_bill = MagicMock()
+                    existing_bill.Id = "EXISTING-BILL-99"
+                    existing_bill.PrivateNote = "qclerq-file-hash:dup-hash-xyz"
+                    mock_bill_class.where.return_value = [existing_bill]
+
+                    # Bill() constructor returns a fresh mock; .save must never be called.
+                    new_bill = MagicMock()
+                    new_bill.Id = "SHOULD-NOT-BE-CREATED"
+                    mock_bill_class.return_value = new_bill
+
+                    from app.services.quickbooks_sync import _create_bill_sync
+
+                    bill_id, created = _create_bill_sync(sync_req, mock_settings, "1")
+
+                    assert bill_id == "EXISTING-BILL-99"
+                    assert created is False
+                    # No new Bill was saved, and the vendor lookup never ran.
+                    assert not new_bill.save.called
+                    assert not mock_vendor_class.where.called
+
+
+def test_idempotency_query_failure_does_not_block_create():
+    """If the idempotency query raises, the Bill is still created (H-1: a query
+    failure must not block the create)."""
+    inv = make_test_invoice(file_hash="qfail-hash", invoice_number="QB-QFAIL-001")
+    sync_req = SyncRequest(
+        invoice=inv,
+        approved_by="manager@test.local",
+        approval_notes="Test",
+        approved_at=datetime.now(timezone.utc),
+        approval_tier="manager",
+    )
+
+    mock_settings = MagicMock()
+    mock_settings.qb_default_expense_account_id = "1"
+
+    with patch("intuitlib.client.AuthClient"):
+        with patch("quickbooks.QuickBooks") as mock_qb_class:
+            with patch("quickbooks.objects.vendor.Vendor") as mock_vendor_class:
+                with patch("quickbooks.objects.base.Ref"):
+                    with patch("quickbooks.objects.bill.Bill") as mock_bill_class:
+                        with patch("quickbooks.objects.detailline.AccountBasedExpenseLine"):
+                            with patch("quickbooks.objects.detailline.AccountBasedExpenseLineDetail"):
+                                mock_qb_class.return_value = MagicMock()
+
+                                # Idempotency query raises — must fall through to create.
+                                mock_bill_class.where.side_effect = RuntimeError("QBO query down")
+
+                                mock_vendor = MagicMock()
+                                mock_vendor.Id = "VENDOR-1"
+                                mock_vendor_class.where.return_value = [mock_vendor]
+
+                                created_bill = MagicMock()
+                                created_bill.Id = "FRESH-BILL-1"
+                                mock_bill_class.return_value = created_bill
+
+                                from app.services.quickbooks_sync import _create_bill_sync
+
+                                bill_id, created = _create_bill_sync(sync_req, mock_settings, "1")
+
+                                assert bill_id == "FRESH-BILL-1"
+                                assert created is True
+                                assert created_bill.save.called
+
+
+@pytest.mark.asyncio
+async def test_sync_returns_skipped_status_on_idempotent_retry():
+    """sync() returns the existing qb_bill_id with sync_status 'skipped' on retry."""
+    inv = make_test_invoice(file_hash="dup-hash-async", invoice_number="QB-DUP-ASYNC")
+    sync_req = SyncRequest(
+        invoice=inv,
+        approved_by="manager@test.local",
+        approval_notes="Test",
+        approved_at=datetime.now(timezone.utc),
+        approval_tier="manager",
+    )
+
+    mock_settings = MagicMock()
+    mock_settings.qb_default_expense_account_id = "1"
+
+    with patch("app.services.quickbooks_sync._create_bill_sync") as mock_create:
+        # Simulate the idempotent path: existing id returned, created=False.
+        mock_create.return_value = ("EXISTING-BILL-ASYNC", False)
+
+        from app.services.quickbooks_sync import sync
+
+        result = await sync(sync_req, mock_settings)
+
+        assert result.qb_bill_id == "EXISTING-BILL-ASYNC"
+        assert result.sync_status["quickbooks"] == "skipped"

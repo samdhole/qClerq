@@ -6,16 +6,16 @@ The LlamaParse-era extractFromFile node strips the binary. Since we now send
 raw PDF bytes directly to Gemini, we need the binary preserved.
 """
 import json
+import os
 import urllib.request
 import urllib.error
 
-# Read API key from sibling script to avoid duplication
-import pathlib, importlib.util, sys
-_here = pathlib.Path(__file__).parent
-spec = importlib.util.spec_from_file_location("patch", _here / "patch_workflow_api.py")
-# Just read the key directly instead of importing
-_src = (_here / "patch_workflow_api.py").read_text()
-API_KEY = _src.split('API_KEY = "')[1].split('"')[0]
+API_KEY = os.environ.get("N8N_API_KEY")
+if not API_KEY:
+    raise SystemExit(
+        "ERROR: environment variable N8N_API_KEY is not set. "
+        "Export it before running this script (see docs/SECRETS_ROTATION.md)."
+    )
 
 BASE = "http://localhost:5678/api/v1"
 WF_ID = "QCG7orEdmyfZlUpx"

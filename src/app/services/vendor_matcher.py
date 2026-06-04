@@ -10,6 +10,10 @@ from rapidfuzz import fuzz, utils as rfu
 
 _VENDORS_PATH = pathlib.Path(__file__).parent.parent / "data" / "vendors.json"
 _FUZZY_THRESHOLD = 88.0
+# Persisted keys derive from attacker-influenced vendor_raw; bound their length and
+# cap the total mapping size so the trusted store cannot grow without limit (M-3).
+_MAX_KEY_LEN = 120
+_MAX_VENDOR_ENTRIES = 500
 _lock = threading.Lock()
 _vendor_cache: dict[str, str] | None = None
 
@@ -40,6 +44,19 @@ def _strip_suffix(name: str) -> str:
     if stripped:
         return stripped
     return name
+
+
+def _canonical_key(vendor_raw: str) -> str:
+    """Derive a bounded, normalized persistence key from attacker-influenced input.
+
+    cleanco-stripped + lowercased + length-bounded. Falls back to a bounded slice of
+    the raw name when suffix-stripping yields nothing (e.g. a pure-suffix string), and
+    returns "" only when no usable key can be formed (caller then skips persistence).
+    """
+    key = _strip_suffix(vendor_raw).strip().lower()
+    if not key:
+        key = vendor_raw.strip().lower()
+    return key[:_MAX_KEY_LEN]
 
 
 def normalize(vendor_raw: str, gemini_api_key: str = "") -> str:
@@ -86,10 +103,23 @@ def normalize(vendor_raw: str, gemini_api_key: str = "") -> str:
     if gemini_api_key:
         llm_result = _llm_resolve(vendor_raw, canonical_names, gemini_api_key)
         if llm_result and llm_result in canonical_names:
-            with _lock:
-                mapping = _load_vendors()
-                mapping[vendor_raw] = llm_result
-                _save_vendors(mapping)
+            # Persist the alias under a hardened, bounded key (M-3). The match itself
+            # always succeeds — persistence is best-effort caching, so any skip path
+            # still returns llm_result.
+            key = _canonical_key(vendor_raw)
+            if key:
+                with _lock:
+                    mapping = _load_vendors()
+                    if key in mapping or len(mapping) < _MAX_VENDOR_ENTRIES:
+                        mapping[key] = llm_result
+                        _save_vendors(mapping)
+                    else:
+                        logging.warning(
+                            "Vendor store at capacity (%d entries); skipping persistence "
+                            "of alias for resolved vendor '%s'",
+                            _MAX_VENDOR_ENTRIES,
+                            llm_result,
+                        )
             return llm_result
 
     # Layer 4: fallback to raw name

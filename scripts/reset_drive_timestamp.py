@@ -1,8 +1,12 @@
 """Reset Drive trigger lastTimeChecked so it re-scans recent files."""
-import json, urllib.request, pathlib, datetime
+import json, os, urllib.request, datetime
 
-src = pathlib.Path(__file__).parent / "patch_workflow_api.py"
-API_KEY = src.read_text().split('API_KEY = "')[1].split('"')[0]
+API_KEY = os.environ.get("N8N_API_KEY")
+if not API_KEY:
+    raise SystemExit(
+        "ERROR: environment variable N8N_API_KEY is not set. "
+        "Export it before running this script (see docs/SECRETS_ROTATION.md)."
+    )
 BASE = "http://localhost:5678/api/v1"
 WF_ID = "QCG7orEdmyfZlUpx"
 HEADERS = {"X-N8N-API-KEY": API_KEY, "Content-Type": "application/json"}

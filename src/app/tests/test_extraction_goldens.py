@@ -314,7 +314,8 @@ class TestVendorNormalization:
 
             assert result == "Acme Corp"
             data = json.loads(vendor_file.read_text(encoding="utf-8"))
-            assert data["AcmeCorporation"] == "Acme Corp"
+            # M-3: aliases persist under a hardened, canonicalized key (lowercased), not the raw name
+            assert data["acmecorporation"] == "Acme Corp"
 
     def test_ac53_novel_vendor_llm_new_name_falls_back_to_raw(self, vendor_file: pathlib.Path) -> None:
         """AC5.3: LLM returning a name not in known canonicals is rejected; falls back to raw (C-2)."""

@@ -28,7 +28,18 @@ node_modules/
 .next/
 dist/
 
-# env
+# env / secret material — never commit (see docs/SECRETS_ROTATION.md)
 .env
 .env.*
+*.env
 !.env.example
+# local-only secret/override files dropped next to tooling scripts
+scripts/*.local.*
+*.local.env
+# credential / key material (do NOT ignore the legitimate .py tooling scripts)
+secrets.json
+*credentials*.json
+service-account*.json
+*.pem
+*.key
+*.p12

@@ -5,13 +5,19 @@ captures the code, exchanges for access + refresh tokens, prints them.
 """
 import http.server
 import json
+import os
 import threading
 import urllib.parse
 import urllib.request
 import webbrowser
 
-CLIENT_ID     = "e7fbb80b-d38f-45bc-9b83-46721dc5ab4e"
-CLIENT_SECRET = "REDACTED_JOBBER_CLIENT_SECRET"
+CLIENT_ID     = os.environ.get("JOBBER_CLIENT_ID", "e7fbb80b-d38f-45bc-9b83-46721dc5ab4e")
+CLIENT_SECRET = os.environ.get("JOBBER_CLIENT_SECRET")
+if not CLIENT_SECRET:
+    raise SystemExit(
+        "ERROR: environment variable JOBBER_CLIENT_SECRET is not set. "
+        "Export it before running this script (see docs/SECRETS_ROTATION.md)."
+    )
 REDIRECT_URI  = "http://localhost:8080/callback"
 AUTH_URL      = "https://api.getjobber.com/api/oauth/authorize"
 TOKEN_URL     = "https://api.getjobber.com/api/oauth/token"

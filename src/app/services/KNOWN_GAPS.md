@@ -65,3 +65,40 @@ Not yet covered by automated tests:
 - Gmail/Drive intake triggers (n8n configuration — manual test only)
 
 Manual integration testing required before production deployment.
+
+## Adversarial Review 2026-06-04 — Remediation Deferrals
+
+The 2026-06-04 review (`reviews/adversarial-review-2026-06-04.md`) was remediated on branch
+`fix/adversarial-review-2026-06-04`. The following items are **partially done or operator-owned**
+and must not be assumed complete:
+
+1. **H-1 — Sheets audit row still double-appends on retry.** QuickBooks and Jobber writes are now
+   idempotent (check-before-create by `file_hash`/`invoice_number`), but `_run_sync` still appends a
+   fresh Invoices row on every call. Full end-to-end idempotency needs an extract-time "claim" row
+   (find-or-create by `file_hash`) before the pipeline proceeds. Until then, a retried `/sync` produces
+   one extra audit row even though no duplicate Bill/expense is created.
+
+2. **H-1 — Jobber idempotency query is unverified against the live schema.** The `expenses(searchTerm:)`
+   lookup in `jobber_sync.py` was not confirmed via GraphiQL. Worst case it false-matches and *skips a
+   real expense*. The query failure path is swallowed (degrades to create-anyway), but confirm the
+   query before relying on Jobber retry dedup.
+
+3. **H-2 / H-4 — n8n graph changes are unverified beyond `json.load`.** The CFO approval node, exception
+   notification node, and the C-1 edge removal have no automated coverage. Run an n8n import + smoke
+   test before trusting them. C-1 survives regardless because the backend tier recompute is an
+   independent defense; H-2/H-4 have no backend backstop.
+
+4. **H-3 — approver allowlist requires operator wiring.** `/approval-callback` is fail-closed against
+   `valid_approvers`. The n8n approval form's "Reviewed By" free-text field must contain an allowlisted
+   approver email (recommend converting it to a dropdown of the configured approvers), and
+   `VALID_APPROVERS` must be set in `.env`. The `'approver'` literal fallback was removed — an empty
+   "Reviewed By" now fails closed (422). `/sync` (auto path) is intentionally exempt from the human
+   allowlist: auto-tier is system-approved; its gate is the server-side tier recompute + API key.
+
+5. **C-2 — secret rotation + git-history scrub are operator actions.** See `docs/SECRETS_ROTATION.md`.
+   Working-tree secret literals are removed and placeholders are in place, but the backend API key and
+   Jobber client secret remain in git history and require a `git filter-repo`/BFG scrub plus rotation
+   of all three secrets (backend key, Jobber client secret, n8n JWT). The n8n workflow's
+   `REPLACE_WITH_BACKEND_API_KEY`, `CFO_APPROVER_EMAIL_PLACEHOLDER`, and
+   `EXCEPTION_NOTIFY_EMAIL_PLACEHOLDER` tokens must be wired (prefer an n8n credential over an inline
+   header for the API key).

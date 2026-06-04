@@ -3,10 +3,14 @@ Backend computes file_hash server-side — the n8n crypto node is redundant and
 fails in newer n8n sandbox (crypto module disallowed).
 New path: Download Invoice PDF -> Call /extract API
 """
-import json, urllib.request, pathlib
+import json, os, urllib.request
 
-src = pathlib.Path(__file__).parent / "patch_workflow_api.py"
-API_KEY = src.read_text().split('API_KEY = "')[1].split('"')[0]
+API_KEY = os.environ.get("N8N_API_KEY")
+if not API_KEY:
+    raise SystemExit(
+        "ERROR: environment variable N8N_API_KEY is not set. "
+        "Export it before running this script (see docs/SECRETS_ROTATION.md)."
+    )
 BASE = "http://localhost:5678/api/v1"
 WF_ID = "QCG7orEdmyfZlUpx"
 HEADERS = {"X-N8N-API-KEY": API_KEY, "Content-Type": "application/json"}

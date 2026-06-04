@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import re
@@ -9,7 +8,7 @@ from typing import Any
 
 import gspread
 
-from app.schemas.invoice import ExceptionItem, InvoiceExtracted, SyncRequest, SyncResult
+from app.schemas.invoice import ExceptionItem, InvoiceExtracted, SyncRequest
 from app.services.dedupe import KnownInvoice
 
 logger = logging.getLogger(__name__)
@@ -191,29 +190,3 @@ def get_known_invoice_data(
 def get_known_hashes(sheet_id: str, service_account_json: str) -> set[str]:
     hashes, _ = get_known_invoice_data(sheet_id, service_account_json)
     return hashes
-
-
-async def sync(req: SyncRequest, settings: Any) -> SyncResult:
-    """Write invoice row to Sheets Invoices tab. Returns SyncResult with sheets_row_id."""
-    sync_status: dict[str, str] = {}
-    row_id: str | None = None
-    try:
-        row_id = await asyncio.to_thread(
-            write_invoice_row,
-            settings.sheet_id,
-            req,
-            None,
-            None,
-            sync_status,
-            settings.google_service_account_json,
-        )
-        sync_status["sheets"] = "ok"
-    except Exception:
-        logger.error("Sheets sync failed", exc_info=True)
-        sync_status["sheets"] = "failed"
-        row_id = None
-
-    return SyncResult(
-        sheets_row_id=row_id,
-        sync_status=sync_status,
-    )

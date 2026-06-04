@@ -211,7 +211,7 @@ def test_sync_all_sheets_row_contains_invoice_fields(client):
                         invoice={
                             **make_sync_request()["invoice"],
                             "vendor_normalized": "Test Vendor Inc",
-                            "total": 1234.56,
+                            "total": 234.56,  # auto-tier: /sync recomputes tier and only accepts auto (C-1)
                             "invoice_number": "INV-999",
                             "invoice_date": "2026-03-15",
                         }
@@ -226,7 +226,7 @@ def test_sync_all_sheets_row_contains_invoice_fields(client):
 
                     # Verify required invoice fields are in the request
                     assert sync_req.invoice.vendor_normalized == "Test Vendor Inc"
-                    assert sync_req.invoice.total == 1234.56
+                    assert sync_req.invoice.total == 234.56
                     assert sync_req.invoice.invoice_number == "INV-999"
                     assert sync_req.invoice.invoice_date is not None
 

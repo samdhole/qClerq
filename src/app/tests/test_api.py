@@ -129,7 +129,8 @@ class TestApprovalCallbackEndpoint:
                 with patch("app.services.jobber_sync.sync") as mock_jobber:
                     mock_jobber.return_value = MagicMock(jobber_expense_id="JOB-456", sync_status={"jobber": "ok"})
                     req = {
-                        "invoice": make_extracted(),
+                        # manager-tier amount: /approval-callback recomputes tier from total
+                        "invoice": make_extracted(total=1000.0, subtotal=920.0, tax=80.0),
                         "approved_by": "manager@example.com",
                         "approval_notes": "Approved",
                         "approved_at": "2026-05-13T10:00:00Z",
@@ -138,6 +139,30 @@ class TestApprovalCallbackEndpoint:
                     r = client.post("/approval-callback", json=req)
                     assert r.status_code == 200
                     assert r.json()["sheets_row_id"] == "1"
+
+    def test_approval_callback_rejects_auto_tier_invoice(self, client):
+        """C-1: an auto-tier (by amount) invoice cannot be pushed through /approval-callback."""
+        req = {
+            "invoice": make_extracted(total=100.0, subtotal=92.0, tax=8.0),
+            "approved_by": "manager@example.com",
+            "approval_notes": "",
+            "approved_at": "2026-05-13T10:00:00Z",
+            "approval_tier": "manager",  # claimed tier is ignored; total routes to auto
+        }
+        r = client.post("/approval-callback", json=req)
+        assert r.status_code == 422
+
+    def test_approval_callback_rejects_unlisted_approver(self, client):
+        """H-3: a manager/CFO approval from an identity outside the allowlist is rejected (422)."""
+        req = {
+            "invoice": make_extracted(total=1000.0, subtotal=920.0, tax=80.0),
+            "approved_by": "hacker@evil.com",
+            "approval_notes": "",
+            "approved_at": "2026-05-13T10:00:00Z",
+            "approval_tier": "manager",
+        }
+        r = client.post("/approval-callback", json=req)
+        assert r.status_code == 422
 
 
 class TestSyncEndpoint:
@@ -165,6 +190,68 @@ class TestSyncEndpoint:
                         assert data["sheets_row_id"] == "2"
                         assert data["qb_bill_id"] == "QB-999"
                         assert data["jobber_expense_id"] == "JOB-888"
+
+    def test_sync_rejects_spoofed_auto_tier(self, client):
+        """C-1/L-4: a high-value invoice spoofed as approval_tier='auto' is rejected (422).
+
+        The server recomputes the tier from the invoice total and refuses to sync; no QB,
+        Jobber, or Sheets write should occur. This is the exact double-write/bypass vector.
+        """
+        with patch("app.services.quickbooks_sync.sync") as mock_qb, \
+             patch("app.services.jobber_sync.sync") as mock_jobber, \
+             patch("app.services.sheets_sync.write_invoice_row") as mock_sheets:
+            req = {
+                "invoice": make_extracted(total=5000.0, subtotal=4600.0, tax=400.0),
+                "approved_by": "manager@example.com",
+                "approval_notes": "",
+                "approved_at": "2026-05-13T10:00:00Z",
+                "approval_tier": "auto",  # spoofed
+            }
+            r = client.post("/sync", json=req)
+            assert r.status_code == 422
+            assert "tier" in r.json()["detail"].lower()
+            mock_qb.assert_not_called()
+            mock_jobber.assert_not_called()
+            mock_sheets.assert_not_called()
+
+    def test_sync_accepts_auto_approved_sentinel(self, client):
+        """Auto path: /sync accepts the system 'auto-approved' identity the n8n auto node sends.
+
+        Regression for the seam bug where a fail-closed human allowlist on /sync would 422
+        every real auto-tier sync. Auto-tier has no human approver — the gate is the tier recompute.
+        """
+        with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets:
+            mock_sheets.return_value = "5"
+            with patch("app.services.sheets_sync.update_sync_status"):
+                with patch("app.services.quickbooks_sync.sync") as mock_qb:
+                    mock_qb.return_value = MagicMock(qb_bill_id="QB-5", sync_status={"quickbooks": "ok"})
+                    with patch("app.services.jobber_sync.sync") as mock_jobber:
+                        mock_jobber.return_value = MagicMock(jobber_expense_id="JOB-5", sync_status={"jobber": "ok"})
+                        req = {
+                            "invoice": make_extracted(total=100.0, subtotal=92.0, tax=8.0),
+                            "approved_by": "auto-approved",
+                            "approval_notes": "",
+                            "approved_at": "2026-05-13T10:00:00Z",
+                            "approval_tier": "auto",
+                        }
+                        r = client.post("/sync", json=req)
+                        assert r.status_code == 200
+
+
+class TestApproverAllowlist:
+    """H-3: fail-closed approver allowlist."""
+
+    def test_check_approved_by_fail_closed_on_empty_allowlist(self):
+        """An empty valid_approvers must reject (403), not accept any non-empty string."""
+        from types import SimpleNamespace
+
+        from fastapi import HTTPException
+
+        from app.api import _check_approved_by
+
+        with pytest.raises(HTTPException) as exc:
+            _check_approved_by("anyone@example.com", SimpleNamespace(valid_approvers=[]))
+        assert exc.value.status_code == 403
 
 
 class TestExtractEndpoint:

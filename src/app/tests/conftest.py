@@ -31,6 +31,7 @@ def test_settings_env(tmp_path_factory):
         "QB_REALM_ID=test-realm\n"
         "QB_DEFAULT_EXPENSE_ACCOUNT_ID=42\n"
         "JOBBER_ACCESS_TOKEN=test-jobber\n"
+        'VALID_APPROVERS=["manager@test.local","cfo@test.local","manager@example.com","cfo@example.com"]\n'
         f"GOOGLE_SERVICE_ACCOUNT_JSON={svc_account}\n"
     )
     return str(env_file)
