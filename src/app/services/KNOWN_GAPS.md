@@ -15,15 +15,13 @@ Extraction uses `gemini-3.1-flash-lite`, defined as `GEMINI_MODEL` in `src/app/c
 
 ## Jobber GraphQL Field Names
 
-**Status:** Unverified against live schema
+**Status:** Verified against live schema 2026-06-04 ✅
 
-The `ExpenseCreateInput` field names used in `jobber_sync.py` are derived from Jobber API documentation but have not been validated against the live GraphQL schema. Before deploying to production:
+`ExpenseCreateInput` required fields confirmed: `title` (required), `total` (required), `description` (optional), `date` (optional), `jobId` (optional). Live expense creation confirmed: Expense `Z2lkOi8vSm9iYmVyL0V4cGVuc2UvMTg2MTI5NjQ=` created in sandbox account (account_id: 2434520).
 
-1. Verify field names match the current Jobber API schema
-2. Test with a sample expense creation in a non-production Jobber instance
-3. Update field mappings if schema changes are discovered
+OAuth app: "qClerq Invoice Sync" (client_id: e7fbb80b-d38f-45bc-9b83-46721dc5ab4e), scopes: `read_expenses write_expenses`.
 
-Affected code: `src/app/services/jobber_sync.py`
+For production deployment: re-run `scripts/jobber_oauth.py` against the client's Jobber account to get a fresh access token.
 
 ## QuickBooks Expense Account ID
 

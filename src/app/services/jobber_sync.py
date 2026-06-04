@@ -10,16 +10,14 @@ from app.schemas.invoice import SyncRequest, SyncResult
 _JOBBER_GRAPHQL_URL = "https://api.getjobber.com/api/graphql"
 _JOBBER_API_VERSION = "2025-04-16"
 
-# NOTE: Phase 6 known gap — Jobber ExpenseCreateInput field names unverified against live schema
-# (requires GraphiQL verification before production use). AC4.3 success path is not confirmed.
-# TODO: Before production, navigate to Jobber Developer Center → Manage Apps → your app
-# → "Test in GraphiQL" and verify field names against live schema introspection.
+# Field names verified against live Jobber schema 2026-06-04:
+# Required: title, total. Optional: description, date, jobId.
 _EXPENSE_CREATE_MUTATION = """
 mutation ExpenseCreate($input: ExpenseCreateInput!) {
     expenseCreate(input: $input) {
         expense {
             id
-            description
+            title
             total
         }
         userErrors { message path }
@@ -32,8 +30,10 @@ def _create_expense_sync(req: SyncRequest, access_token: str) -> str:
     """Create Jobber expense and return jobber_expense_id. Raises on failure."""
     inv = req.invoice
 
-    # NOTE: Phase 6 known gap — These field names are unverified against live Jobber schema
+    # Field names verified against live Jobber schema 2026-06-04:
+    # - title (required), description (optional), total (required), date (optional), jobId (optional)
     expense_input: dict[str, Any] = {
+        "title": f"Invoice {inv.invoice_number or 'unknown'} — {inv.vendor_normalized}",
         "description": f"Invoice {inv.invoice_number or 'unknown'} from {inv.vendor_normalized}",
         "total": inv.total,
     }
