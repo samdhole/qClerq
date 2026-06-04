@@ -1,5 +1,5 @@
 ﻿{
-    "updatedAt":  "2026-06-04T18:53:44.996Z",
+    "updatedAt":  "2026-06-04T19:05:33.535Z",
     "createdAt":  "2026-05-14T04:14:08.619Z",
     "id":  "QCG7orEdmyfZlUpx",
     "name":  "qClerq - AI Invoice Desk",
@@ -249,7 +249,8 @@
                                                                        "severity":  "high",
                                                                        "message":  "={{ ($json.output.warnings || []).join(\u0027; \u0027) || ($json.output.missing_required_fields || []).join(\u0027, \u0027) }}",
                                                                        "status":  "open"
-                                                                   }
+                                                                   },
+                                                         "mappingMode":  "defineBelow"
                                                      },
                                          "options":  {
 
@@ -997,14 +998,14 @@
                                                                               ]
                                                       },
                        "node:Invoice Folder Monitor":  {
-                                                           "lastTimeChecked":  "2026-06-04T18:53:45Z"
+                                                           "lastTimeChecked":  "2026-06-04T19:07:13Z"
                                                        },
                        "node:Monitor Gmail Invoices":  {
                                                            "Monitor Gmail Invoices":  {
-                                                                                          "lastTimeChecked":  1780599112,
+                                                                                          "lastTimeChecked":  1780599994,
                                                                                           "possibleDuplicates":  [
-                                                                                                                     "19e93fa64cd816d9",
-                                                                                                                     "19e93f7476a74bed"
+                                                                                                                     "19e9407dee500b6a",
+                                                                                                                     "19e9405081c18aec"
                                                                                                                  ]
                                                                                       }
                                                        }
@@ -1013,9 +1014,9 @@
     "pinData":  {
 
                 },
-    "versionId":  "a6ae6969-69da-4f73-b41a-fa00edc688bb",
-    "activeVersionId":  "a6ae6969-69da-4f73-b41a-fa00edc688bb",
-    "versionCounter":  123,
+    "versionId":  "0e949630-9d14-4828-937b-d368350c50f5",
+    "activeVersionId":  "0e949630-9d14-4828-937b-d368350c50f5",
+    "versionCounter":  135,
     "triggerCount":  4,
     "shared":  [
                    {
@@ -1040,9 +1041,9 @@
 
              ],
     "activeVersion":  {
-                          "updatedAt":  "2026-06-04T18:53:44.998Z",
-                          "createdAt":  "2026-06-04T18:53:44.998Z",
-                          "versionId":  "a6ae6969-69da-4f73-b41a-fa00edc688bb",
+                          "updatedAt":  "2026-06-04T19:05:33.537Z",
+                          "createdAt":  "2026-06-04T19:05:33.537Z",
+                          "versionId":  "0e949630-9d14-4828-937b-d368350c50f5",
                           "workflowId":  "QCG7orEdmyfZlUpx",
                           "nodes":  [
                                         {
@@ -1287,7 +1288,8 @@
                                                                                              "severity":  "high",
                                                                                              "message":  "={{ ($json.output.warnings || []).join(\u0027; \u0027) || ($json.output.missing_required_fields || []).join(\u0027, \u0027) }}",
                                                                                              "status":  "open"
-                                                                                         }
+                                                                                         },
+                                                                               "mappingMode":  "defineBelow"
                                                                            },
                                                                "options":  {
 
@@ -2030,10 +2032,10 @@
                           "autosaved":  false,
                           "workflowPublishHistory":  [
                                                          {
-                                                             "createdAt":  "2026-06-04T18:53:46.007Z",
-                                                             "id":  121,
+                                                             "createdAt":  "2026-06-04T19:05:34.512Z",
+                                                             "id":  125,
                                                              "workflowId":  "QCG7orEdmyfZlUpx",
-                                                             "versionId":  "a6ae6969-69da-4f73-b41a-fa00edc688bb",
+                                                             "versionId":  "0e949630-9d14-4828-937b-d368350c50f5",
                                                              "event":  "activated",
                                                              "userId":  "1e482a7c-a0a2-4fd5-b806-4d374e209ab4"
                                                          }

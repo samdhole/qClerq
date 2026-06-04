@@ -1,5 +1,5 @@
 # Human Test Plan — qClerq AI Invoice Pipeline
-# Generated: 2026-05-13 | Updated: 2026-05-15 | Automated coverage: 26/26 ACs | Tests: 112 passed | Manual: P1.3 P1.4 P2.1-2.5 P3.1 P5.1 P5.2 P5.3 P6.3 ✅
+# Generated: 2026-05-13 | Updated: 2026-06-04 | Automated coverage: 26/26 ACs | Tests: 112 passed | Manual: P1.1 P1.3 P1.4 P2.1-2.5 P3.1 P5.1 P5.2 P5.3 P6.3 ✅
 
 ## Prerequisites
 
@@ -14,12 +14,12 @@
 - Google Sheet `1Vy7dvq18Jh6CSoNBkNk1YMjN9btXGIsLv5nQdO7i9sY` has `Invoices` and `Exceptions` tabs with header rows matching `src/app/services/sheets_sync.py` (INVOICE_COLUMNS / EXCEPTION_COLUMNS)
 - Sheet shared with service account `qclerq@gen-lang-client-0832688008.iam.gserviceaccount.com` (Editor)
 
-## Status as of 2026-05-14
+## Status as of 2026-06-04
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | Prerequisites | ✅ Done | `.env` set, backend on 9100, 112 tests passing, Sheets headers written |
-| Phase 1 — Intake triggers | ⚠️ Partial | 1.3 ✅ Web Upload Form (exec #78, Invoice-9723.pdf, $23.40 EUR, auto-approved → Sheets); 1.4 ✅ guard rails confirmed (415 docx, 415 bad magic, 413 oversized, 401 no key); 1.1/1.2 pending (Gmail/Drive OAuth) |
+| Phase 1 — Intake triggers | ⚠️ Partial | 1.1 ✅ Gmail trigger (exec #106, MES-2026-0089 $7,500, CFO approval email sent); 1.3 ✅ Web Upload Form (exec #78); 1.4 ✅ guard rails (415/413/401); 1.2 Drive monitor pending |
 | Phase 2 — Approval routing | ✅ Done | 2.1 ✅ auto (exec #78); 2.2 ✅ manager email (exec #90); 2.3 ✅ CFO email (exec #91, MES-2026-0089 $7,500); 2.4 ✅ approved_by/notes/at on Sheets row 5; 2.5 ✅ rejection email sent, no sync |
 | Phase 3 — Proof trail | ⚠️ Partial | Sheets row 5: approved_by, approved_at, file_hash all present; QB/Jobber IDs null (no creds) |
 | Phase 4 — Failure isolation | ❌ Pending | Requires QB/Jobber creds |
