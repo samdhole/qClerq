@@ -1,5 +1,5 @@
 ﻿{
-    "updatedAt":  "2026-06-04T18:41:47.000Z",
+    "updatedAt":  "2026-06-04T18:53:44.996Z",
     "createdAt":  "2026-05-14T04:14:08.619Z",
     "id":  "QCG7orEdmyfZlUpx",
     "name":  "qClerq - AI Invoice Desk",
@@ -785,24 +785,13 @@
                                                        "main":  [
                                                                     [
                                                                         {
-                                                                            "node":  "Extract Text from Email PDF",
+                                                                            "node":  "Rename Gmail Binary",
                                                                             "type":  "main",
                                                                             "index":  0
                                                                         }
                                                                     ]
                                                                 ]
                                                    },
-                        "Extract Text from Email PDF":  {
-                                                            "main":  [
-                                                                         [
-                                                                             {
-                                                                                 "node":  "Call /extract API",
-                                                                                 "type":  "main",
-                                                                                 "index":  0
-                                                                             }
-                                                                         ]
-                                                                     ]
-                                                        },
                         "Web Upload Form":  {
                                                 "main":  [
                                                              [
@@ -984,7 +973,18 @@
                                                                    }
                                                                ]
                                                            ]
-                                              }
+                                              },
+                        "Rename Gmail Binary":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Call /extract API",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                }
                     },
     "settings":  {
                      "executionOrder":  "v1",
@@ -997,14 +997,14 @@
                                                                               ]
                                                       },
                        "node:Invoice Folder Monitor":  {
-                                                           "lastTimeChecked":  "2026-06-04T18:46:24Z"
+                                                           "lastTimeChecked":  "2026-06-04T18:53:45Z"
                                                        },
                        "node:Monitor Gmail Invoices":  {
                                                            "Monitor Gmail Invoices":  {
-                                                                                          "lastTimeChecked":  1780015116,
+                                                                                          "lastTimeChecked":  1780599112,
                                                                                           "possibleDuplicates":  [
-                                                                                                                     "19e712b35e14ec88",
-                                                                                                                     "19e3d9de651126dc"
+                                                                                                                     "19e93fa64cd816d9",
+                                                                                                                     "19e93f7476a74bed"
                                                                                                                  ]
                                                                                       }
                                                        }
@@ -1013,9 +1013,9 @@
     "pinData":  {
 
                 },
-    "versionId":  "b229183a-976b-4948-82c8-90b4bd0db675",
-    "activeVersionId":  "b229183a-976b-4948-82c8-90b4bd0db675",
-    "versionCounter":  108,
+    "versionId":  "a6ae6969-69da-4f73-b41a-fa00edc688bb",
+    "activeVersionId":  "a6ae6969-69da-4f73-b41a-fa00edc688bb",
+    "versionCounter":  123,
     "triggerCount":  4,
     "shared":  [
                    {
@@ -1040,9 +1040,9 @@
 
              ],
     "activeVersion":  {
-                          "updatedAt":  "2026-06-04T18:40:54.129Z",
-                          "createdAt":  "2026-06-04T18:40:54.129Z",
-                          "versionId":  "b229183a-976b-4948-82c8-90b4bd0db675",
+                          "updatedAt":  "2026-06-04T18:53:44.998Z",
+                          "createdAt":  "2026-06-04T18:53:44.998Z",
+                          "versionId":  "a6ae6969-69da-4f73-b41a-fa00edc688bb",
                           "workflowId":  "QCG7orEdmyfZlUpx",
                           "nodes":  [
                                         {
@@ -1823,24 +1823,13 @@
                                                                              "main":  [
                                                                                           [
                                                                                               {
-                                                                                                  "node":  "Extract Text from Email PDF",
+                                                                                                  "node":  "Rename Gmail Binary",
                                                                                                   "type":  "main",
                                                                                                   "index":  0
                                                                                               }
                                                                                           ]
                                                                                       ]
                                                                          },
-                                              "Extract Text from Email PDF":  {
-                                                                                  "main":  [
-                                                                                               [
-                                                                                                   {
-                                                                                                       "node":  "Call /extract API",
-                                                                                                       "type":  "main",
-                                                                                                       "index":  0
-                                                                                                   }
-                                                                                               ]
-                                                                                           ]
-                                                                              },
                                               "Web Upload Form":  {
                                                                       "main":  [
                                                                                    [
@@ -2022,7 +2011,18 @@
                                                                                          }
                                                                                      ]
                                                                                  ]
-                                                                    }
+                                                                    },
+                                              "Rename Gmail Binary":  {
+                                                                          "main":  [
+                                                                                       [
+                                                                                           {
+                                                                                               "node":  "Call /extract API",
+                                                                                               "type":  "main",
+                                                                                               "index":  0
+                                                                                           }
+                                                                                       ]
+                                                                                   ]
+                                                                      }
                                           },
                           "authors":  "Sam Dhole",
                           "name":  null,
@@ -2030,19 +2030,11 @@
                           "autosaved":  false,
                           "workflowPublishHistory":  [
                                                          {
-                                                             "createdAt":  "2026-06-04T18:46:26.767Z",
-                                                             "id":  115,
+                                                             "createdAt":  "2026-06-04T18:53:46.007Z",
+                                                             "id":  121,
                                                              "workflowId":  "QCG7orEdmyfZlUpx",
-                                                             "versionId":  "b229183a-976b-4948-82c8-90b4bd0db675",
+                                                             "versionId":  "a6ae6969-69da-4f73-b41a-fa00edc688bb",
                                                              "event":  "activated",
-                                                             "userId":  "1e482a7c-a0a2-4fd5-b806-4d374e209ab4"
-                                                         },
-                                                         {
-                                                             "createdAt":  "2026-06-04T18:40:54.221Z",
-                                                             "id":  114,
-                                                             "workflowId":  "QCG7orEdmyfZlUpx",
-                                                             "versionId":  "b229183a-976b-4948-82c8-90b4bd0db675",
-                                                             "event":  "deactivated",
                                                              "userId":  "1e482a7c-a0a2-4fd5-b806-4d374e209ab4"
                                                          }
                                                      ]
