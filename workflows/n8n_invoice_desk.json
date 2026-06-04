@@ -1,5 +1,5 @@
 ﻿{
-    "updatedAt":  "2026-06-04T19:05:33.535Z",
+    "updatedAt":  "2026-06-04T19:37:50.950Z",
     "createdAt":  "2026-05-14T04:14:08.619Z",
     "id":  "QCG7orEdmyfZlUpx",
     "name":  "qClerq - AI Invoice Desk",
@@ -250,7 +250,49 @@
                                                                        "message":  "={{ ($json.output.warnings || []).join(\u0027; \u0027) || ($json.output.missing_required_fields || []).join(\u0027, \u0027) }}",
                                                                        "status":  "open"
                                                                    },
-                                                         "mappingMode":  "defineBelow"
+                                                         "mappingMode":  "defineBelow",
+                                                         "schema":  [
+                                                                        {
+                                                                            "id":  "invoice_id",
+                                                                            "displayName":  "invoice_id",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "type":  "string"
+                                                                        },
+                                                                        {
+                                                                            "id":  "issue_type",
+                                                                            "displayName":  "issue_type",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "type":  "string"
+                                                                        },
+                                                                        {
+                                                                            "id":  "severity",
+                                                                            "displayName":  "severity",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "type":  "string"
+                                                                        },
+                                                                        {
+                                                                            "id":  "message",
+                                                                            "displayName":  "message",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "type":  "string"
+                                                                        },
+                                                                        {
+                                                                            "id":  "status",
+                                                                            "displayName":  "status",
+                                                                            "required":  false,
+                                                                            "defaultMatch":  false,
+                                                                            "canBeUsedToMatch":  true,
+                                                                            "type":  "string"
+                                                                        }
+                                                                    ]
                                                      },
                                          "options":  {
 
@@ -609,7 +651,7 @@
                                                                         },
                                                             "conditions":  [
                                                                                {
-                                                                                   "leftValue":  "={{ $binary.data.mimeType }}",
+                                                                                   "leftValue":  "={{ $json.mimeType }}",
                                                                                    "rightValue":  "application/pdf",
                                                                                    "operator":  {
                                                                                                     "type":  "string",
@@ -753,7 +795,7 @@
                                                      "main":  [
                                                                   [
                                                                       {
-                                                                          "node":  "Compute File Hash",
+                                                                          "node":  "Call /extract API",
                                                                           "type":  "main",
                                                                           "index":  0
                                                                       }
@@ -998,7 +1040,7 @@
                                                                               ]
                                                       },
                        "node:Invoice Folder Monitor":  {
-                                                           "lastTimeChecked":  "2026-06-04T19:07:13Z"
+                                                           "lastTimeChecked":  "2026-06-04T19:41:16Z"
                                                        },
                        "node:Monitor Gmail Invoices":  {
                                                            "Monitor Gmail Invoices":  {
@@ -1014,9 +1056,9 @@
     "pinData":  {
 
                 },
-    "versionId":  "0e949630-9d14-4828-937b-d368350c50f5",
-    "activeVersionId":  "0e949630-9d14-4828-937b-d368350c50f5",
-    "versionCounter":  135,
+    "versionId":  "b7829220-8279-4748-b26a-392a48563efc",
+    "activeVersionId":  "b7829220-8279-4748-b26a-392a48563efc",
+    "versionCounter":  170,
     "triggerCount":  4,
     "shared":  [
                    {
@@ -1041,9 +1083,9 @@
 
              ],
     "activeVersion":  {
-                          "updatedAt":  "2026-06-04T19:05:33.537Z",
-                          "createdAt":  "2026-06-04T19:05:33.537Z",
-                          "versionId":  "0e949630-9d14-4828-937b-d368350c50f5",
+                          "updatedAt":  "2026-06-04T19:37:50.952Z",
+                          "createdAt":  "2026-06-04T19:37:50.952Z",
+                          "versionId":  "b7829220-8279-4748-b26a-392a48563efc",
                           "workflowId":  "QCG7orEdmyfZlUpx",
                           "nodes":  [
                                         {
@@ -1289,7 +1331,49 @@
                                                                                              "message":  "={{ ($json.output.warnings || []).join(\u0027; \u0027) || ($json.output.missing_required_fields || []).join(\u0027, \u0027) }}",
                                                                                              "status":  "open"
                                                                                          },
-                                                                               "mappingMode":  "defineBelow"
+                                                                               "mappingMode":  "defineBelow",
+                                                                               "schema":  [
+                                                                                              {
+                                                                                                  "id":  "invoice_id",
+                                                                                                  "displayName":  "invoice_id",
+                                                                                                  "required":  false,
+                                                                                                  "defaultMatch":  false,
+                                                                                                  "canBeUsedToMatch":  true,
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                              {
+                                                                                                  "id":  "issue_type",
+                                                                                                  "displayName":  "issue_type",
+                                                                                                  "required":  false,
+                                                                                                  "defaultMatch":  false,
+                                                                                                  "canBeUsedToMatch":  true,
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                              {
+                                                                                                  "id":  "severity",
+                                                                                                  "displayName":  "severity",
+                                                                                                  "required":  false,
+                                                                                                  "defaultMatch":  false,
+                                                                                                  "canBeUsedToMatch":  true,
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                              {
+                                                                                                  "id":  "message",
+                                                                                                  "displayName":  "message",
+                                                                                                  "required":  false,
+                                                                                                  "defaultMatch":  false,
+                                                                                                  "canBeUsedToMatch":  true,
+                                                                                                  "type":  "string"
+                                                                                              },
+                                                                                              {
+                                                                                                  "id":  "status",
+                                                                                                  "displayName":  "status",
+                                                                                                  "required":  false,
+                                                                                                  "defaultMatch":  false,
+                                                                                                  "canBeUsedToMatch":  true,
+                                                                                                  "type":  "string"
+                                                                                              }
+                                                                                          ]
                                                                            },
                                                                "options":  {
 
@@ -1648,7 +1732,7 @@
                                                                                               },
                                                                                   "conditions":  [
                                                                                                      {
-                                                                                                         "leftValue":  "={{ $binary.data.mimeType }}",
+                                                                                                         "leftValue":  "={{ $json.mimeType }}",
                                                                                                          "rightValue":  "application/pdf",
                                                                                                          "operator":  {
                                                                                                                           "type":  "string",
@@ -1792,7 +1876,7 @@
                                                                            "main":  [
                                                                                         [
                                                                                             {
-                                                                                                "node":  "Compute File Hash",
+                                                                                                "node":  "Call /extract API",
                                                                                                 "type":  "main",
                                                                                                 "index":  0
                                                                                             }
@@ -2032,10 +2116,10 @@
                           "autosaved":  false,
                           "workflowPublishHistory":  [
                                                          {
-                                                             "createdAt":  "2026-06-04T19:05:34.512Z",
-                                                             "id":  125,
+                                                             "createdAt":  "2026-06-04T19:37:51.912Z",
+                                                             "id":  137,
                                                              "workflowId":  "QCG7orEdmyfZlUpx",
-                                                             "versionId":  "0e949630-9d14-4828-937b-d368350c50f5",
+                                                             "versionId":  "b7829220-8279-4748-b26a-392a48563efc",
                                                              "event":  "activated",
                                                              "userId":  "1e482a7c-a0a2-4fd5-b806-4d374e209ab4"
                                                          }
