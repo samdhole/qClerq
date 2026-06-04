@@ -1,9 +1,16 @@
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
 
+import httpx
 import pytest
 
 from app.schemas.invoice import InvoiceExtracted, LineItem, SyncRequest
+
+
+def _http_status_error(status_code: int) -> httpx.HTTPStatusError:
+    return httpx.HTTPStatusError(
+        str(status_code), request=MagicMock(), response=MagicMock(status_code=status_code)
+    )
 
 
 def make_test_invoice(**overrides) -> InvoiceExtracted:
@@ -177,9 +184,9 @@ async def test_sync_returns_skipped_status_on_idempotent_retry():
     )
 
     mock_settings = MagicMock()
-    mock_settings.jobber_access_token = "test-access-token"
 
-    with patch("app.services.jobber_sync._create_expense_sync") as mock_create:
+    with patch("app.services.jobber_auth.get_access_token", return_value="tok"), \
+         patch("app.services.jobber_sync._create_expense_sync") as mock_create:
         mock_create.return_value = ("existing-exp-async", False)
 
         from app.services.jobber_sync import sync
@@ -188,3 +195,68 @@ async def test_sync_returns_skipped_status_on_idempotent_retry():
 
         assert result.jobber_expense_id == "existing-exp-async"
         assert result.sync_status["jobber"] == "skipped"
+
+
+def _basic_sync_req() -> SyncRequest:
+    return SyncRequest(
+        invoice=make_test_invoice(),
+        approved_by="manager@test.local",
+        approval_notes="Test",
+        approved_at=datetime.now(timezone.utc),
+        approval_tier="manager",
+    )
+
+
+@pytest.mark.asyncio
+async def test_sync_obtains_access_token_via_token_manager():
+    """sync() pulls a fresh token from jobber_auth instead of a static settings field."""
+    with patch("app.services.jobber_auth.get_access_token", return_value="fresh-token") as get_tok, \
+         patch("app.services.jobber_sync._create_expense_sync") as mock_create:
+        mock_create.return_value = ("exp-1", True)
+
+        from app.services.jobber_sync import sync
+
+        result = await sync(_basic_sync_req(), MagicMock())
+
+        get_tok.assert_called_once()
+        # the token from the manager (not a static field) is what reaches the create
+        assert mock_create.call_args.args[1] == "fresh-token"
+        assert result.sync_status["jobber"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_sync_retries_once_after_401_with_fresh_token():
+    """A 401 invalidates the cached token, gets a fresh one, and retries the create once."""
+    with patch("app.services.jobber_auth.get_access_token", side_effect=["stale", "renewed"]) as get_tok, \
+         patch("app.services.jobber_auth.invalidate") as invalidate, \
+         patch("app.services.jobber_sync._create_expense_sync") as mock_create:
+        mock_create.side_effect = [_http_status_error(401), ("exp-after-retry", True)]
+
+        from app.services.jobber_sync import sync
+
+        result = await sync(_basic_sync_req(), MagicMock())
+
+        assert result.jobber_expense_id == "exp-after-retry"
+        assert result.sync_status["jobber"] == "ok"
+        invalidate.assert_called_once()
+        assert get_tok.call_count == 2
+        assert mock_create.call_count == 2
+        assert mock_create.call_args_list[1].args[1] == "renewed"
+
+
+@pytest.mark.asyncio
+async def test_sync_non_401_error_fails_without_retry():
+    """A non-auth error marks jobber failed and does not retry."""
+    with patch("app.services.jobber_auth.get_access_token", return_value="tok"), \
+         patch("app.services.jobber_auth.invalidate") as invalidate, \
+         patch("app.services.jobber_sync._create_expense_sync") as mock_create:
+        mock_create.side_effect = _http_status_error(500)
+
+        from app.services.jobber_sync import sync
+
+        result = await sync(_basic_sync_req(), MagicMock())
+
+        assert result.jobber_expense_id is None
+        assert result.sync_status["jobber"] == "failed"
+        invalidate.assert_not_called()
+        assert mock_create.call_count == 1

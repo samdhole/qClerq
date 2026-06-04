@@ -21,7 +21,20 @@ Extraction uses `gemini-3.1-flash-lite`, defined as `GEMINI_MODEL` in `src/app/c
 
 OAuth app: "qClerq Invoice Sync" (client_id: e7fbb80b-d38f-45bc-9b83-46721dc5ab4e), scopes: `read_expenses write_expenses`.
 
-For production deployment: re-run `scripts/jobber_oauth.py` against the client's Jobber account to get a fresh access token.
+For production deployment: run `scripts/jobber_oauth.py` once against the client's Jobber account to obtain `JOBBER_REFRESH_TOKEN` (+ client id/secret). The backend refreshes the short-lived access token automatically — see below.
+
+## Jobber Token Refresh
+
+**Status:** Implemented 2026-06-04 ✅
+
+Jobber access tokens expire after ~60 minutes; the **refresh token** is the durable credential. `src/app/services/jobber_auth.py` trades it for access tokens transparently:
+
+- caches the access token and refreshes proactively (120s skew before expiry);
+- handles **refresh-token rotation** (required to publish in Jobber's marketplace): each refresh may return a new, single-use refresh token, persisted atomically to `src/app/data/jobber_token.json` (gitignored) before the next request uses it — reusing a spent token triggers reuse-detection and revokes the whole chain;
+- serialises refreshes behind a `threading.Lock` (single-flight), safe under the single-worker uvicorn assumption; a multi-worker deployment needs a shared store + distributed lock;
+- falls back to the legacy static `JOBBER_ACCESS_TOKEN` when no refresh token is configured.
+
+Required env: `JOBBER_REFRESH_TOKEN`, `JOBBER_CLIENT_ID`, `JOBBER_CLIENT_SECRET`. Code: `jobber_auth.py` (shell), `jobber_token.py` (pure freshness logic), `jobber_sync.py`, `config.py`. Refs: [Jobber App Authorization](https://developer.getjobber.com/docs/building_your_app/app_authorization/), [Refresh Token Rotation](https://developer.getjobber.com/docs/building_your_app/refresh_token_rotation/).
 
 ## QuickBooks Expense Account ID
 

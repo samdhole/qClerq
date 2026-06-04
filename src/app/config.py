@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     qb_default_expense_account_id: str = "1"
     qb_environment: str = "sandbox"
 
+    # Jobber: the refresh token is the durable credential (access tokens live ~60 min and
+    # are refreshed transparently by jobber_auth). jobber_access_token is legacy/seed-only.
+    jobber_client_id: str = ""
+    jobber_client_secret: str = ""
+    jobber_refresh_token: str = ""
     jobber_access_token: str = ""
 
     google_service_account_json: str

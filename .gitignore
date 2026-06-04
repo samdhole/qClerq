@@ -43,3 +43,6 @@ service-account*.json
 *.pem
 *.key
 *.p12
+# Jobber rotating refresh-token store (written by jobber_auth.py at runtime)
+src/app/data/jobber_token.json
+src/app/data/jobber_token.json.tmp

@@ -96,4 +96,14 @@ if __name__ == "__main__":
     tokens = exchange_code(auth_code)
     print("\n=== TOKENS ===")
     print(json.dumps(tokens, indent=2))
-    print(f"\nPut this in .env:\nJOBBER_ACCESS_TOKEN={tokens.get('access_token', 'NOT_FOUND')}")
+    print(
+        "\nPut these in .env. The REFRESH token is the durable credential — the backend"
+        "\nrefreshes the short-lived access token automatically (see jobber_auth.py):"
+    )
+    print(f"JOBBER_REFRESH_TOKEN={tokens.get('refresh_token', 'NOT_FOUND')}")
+    print(f"JOBBER_CLIENT_ID={CLIENT_ID}")
+    print("JOBBER_CLIENT_SECRET=<the value you set in the env to run this script>")
+    print(
+        f"\n# JOBBER_ACCESS_TOKEN is now optional (legacy static fallback only):"
+        f"\n# JOBBER_ACCESS_TOKEN={tokens.get('access_token', 'NOT_FOUND')}"
+    )

@@ -1,3 +1,4 @@
+# pattern: Imperative Shell
 from __future__ import annotations
 
 import asyncio
@@ -6,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.schemas.invoice import SyncRequest, SyncResult
+from app.services import jobber_auth
 
 _JOBBER_GRAPHQL_URL = "https://api.getjobber.com/api/graphql"
 _JOBBER_API_VERSION = "2025-04-16"
@@ -155,13 +157,22 @@ def _create_expense_sync(req: SyncRequest, access_token: str) -> tuple[str, bool
 async def sync(req: SyncRequest, settings: Any) -> SyncResult:
     """Create Jobber expense. Returns SyncResult with jobber_expense_id.
 
-    Idempotent (H-1): a retry of an already-synced invoice returns the existing
-    jobber_expense_id with sync_status "skipped" instead of creating a second one.
+    The access token comes from `jobber_auth`, which refreshes the short-lived Jobber
+    token transparently. Idempotent (H-1): a retry of an already-synced invoice returns
+    the existing id with sync_status "skipped". If a call still returns 401 (e.g. a token
+    revoked mid-life), we invalidate the cache, mint a fresh token, and retry once.
     """
     try:
-        jobber_expense_id, created = await asyncio.to_thread(
-            _create_expense_sync, req, settings.jobber_access_token
-        )
+        token = jobber_auth.get_access_token(settings)
+        try:
+            jobber_expense_id, created = await asyncio.to_thread(_create_expense_sync, req, token)
+        except httpx.HTTPStatusError as e:
+            if getattr(e.response, "status_code", None) == 401:
+                jobber_auth.invalidate()
+                token = jobber_auth.get_access_token(settings)
+                jobber_expense_id, created = await asyncio.to_thread(_create_expense_sync, req, token)
+            else:
+                raise
         sync_status = {"jobber": "ok" if created else "skipped"}
     except Exception:
         jobber_expense_id = None
