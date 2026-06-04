@@ -325,7 +325,7 @@
     {
       "parameters": {
         "operation": "sendAndWait",
-        "sendTo": "enigman.kk@gmail.com",
+        "sendTo": "enigman.kk+manager@gmail.com",
         "subject": "=[Action Required] Invoice - {{ $('Call /extract API').first().json.vendor_normalized || $('Call /extract API').first().json.vendor_raw }} / {{ $('Call /extract API').first().json.invoice_number }}",
         "message": "=New invoice for approval:\n\nVendor: {{ $('Call /extract API').first().json.vendor_normalized }}\nInvoice #: {{ $('Call /extract API').first().json.invoice_number }}\nDate: {{ $('Call /extract API').first().json.invoice_date }}\nTotal: {{ $('Call /extract API').first().json.currency }} {{ $('Call /extract API').first().json.total }}\nDuplicate risk: {{ $('Call /extract API').first().json.duplicate_risk }}\nWarnings: {{ ($('Call /extract API').first().json.warnings || []).join(', ') || 'none' }}",
         "responseType": "customForm",
@@ -409,7 +409,7 @@
     },
     {
       "parameters": {
-        "sendTo": "enigman.kk@gmail.com",
+        "sendTo": "enigman.kk+manager@gmail.com",
         "subject": "=[Rejected] Invoice from {{ $('Call /extract API').first().json.vendor_normalized }}",
         "emailType": "text",
         "message": "=Invoice rejected.\n\nVendor: {{ $('Call /extract API').first().json.vendor_normalized }}\nInvoice #: {{ $('Call /extract API').first().json.invoice_number }}\nTotal: {{ $('Call /extract API').first().json.currency }} {{ $('Call /extract API').first().json.total }}\n\nReviewed by: {{ $json.data['Reviewed By'] }}\nNotes: {{ $json.data['Approval Notes'] }}",
@@ -449,15 +449,9 @@
           ]
         },
         "options": {},
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-API-Key",
-              "value": "REPLACE_WITH_BACKEND_API_KEY"
-            }
-          ]
-        }
+        "sendHeaders": false,
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "call-extract-api",
       "name": "Call /extract API",
@@ -466,7 +460,13 @@
       "position": [
         912,
         304
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "NgllGFjjT9eTiD5S",
+          "name": "qClerq Backend API Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -476,15 +476,9 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {},
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-API-Key",
-              "value": "REPLACE_WITH_BACKEND_API_KEY"
-            }
-          ]
-        }
+        "sendHeaders": false,
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "call-validate-api",
       "name": "Call /validate API",
@@ -493,7 +487,13 @@
       "position": [
         1104,
         304
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "NgllGFjjT9eTiD5S",
+          "name": "qClerq Backend API Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -589,15 +589,9 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ invoice: $('Call /extract API').item.json, approved_by: 'auto-approved', approval_notes: '', approved_at: new Date().toISOString(), approval_tier: 'auto' }) }}",
         "options": {},
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-API-Key",
-              "value": "REPLACE_WITH_BACKEND_API_KEY"
-            }
-          ]
-        }
+        "sendHeaders": false,
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "call-sync-api",
       "name": "Call /sync API",
@@ -606,7 +600,13 @@
       "position": [
         1504,
         208
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "NgllGFjjT9eTiD5S",
+          "name": "qClerq Backend API Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -616,15 +616,9 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ invoice: $('Call /extract API').first().json, approved_by: $json.data['Reviewed By'] || $json['Reviewed By'] || '', approval_notes: $json.data['Approval Notes'] || $json['Approval Notes'] || '', approved_at: new Date().toISOString(), approval_tier: $('Call /validate API').first().json.approval_tier }) }}",
         "options": {},
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-API-Key",
-              "value": "REPLACE_WITH_BACKEND_API_KEY"
-            }
-          ]
-        }
+        "sendHeaders": false,
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "call-approval-callback",
       "name": "Call /approval-callback",
@@ -633,7 +627,13 @@
       "position": [
         1504,
         400
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "NgllGFjjT9eTiD5S",
+          "name": "qClerq Backend API Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -722,15 +722,9 @@
       "parameters": {
         "url": "http://127.0.0.1:9100/report/weekly",
         "options": {},
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-API-Key",
-              "value": "REPLACE_WITH_BACKEND_API_KEY"
-            }
-          ]
-        }
+        "sendHeaders": false,
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "call-weekly-report",
       "name": "Get Weekly Report",
@@ -739,11 +733,17 @@
       "position": [
         304,
         1008
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "NgllGFjjT9eTiD5S",
+          "name": "qClerq Backend API Key"
+        }
+      }
     },
     {
       "parameters": {
-        "sendTo": "enigman.kk@gmail.com",
+        "sendTo": "enigman.kk+manager@gmail.com",
         "subject": "=Weekly Invoice Report â€” {{ new Date().toLocaleDateString() }}",
         "emailType": "text",
         "message": "=Weekly Invoice Report\n\nPeriod: {{ $json.period_start }} to {{ $json.period_end }}\nInvoices: {{ $json.invoice_count }}\nTotal Value: ${{ $json.total_value.toFixed(2) }}\nException Rate: {{ ($json.exception_rate * 100).toFixed(1) }}%\nSync Failures: {{ JSON.stringify($json.sync_failures) }}\nTop Vendors: {{ $json.top_vendors.join(', ') }}",
@@ -768,7 +768,7 @@
     {
       "parameters": {
         "operation": "sendAndWait",
-        "sendTo": "CFO_APPROVER_EMAIL_PLACEHOLDER",
+        "sendTo": "enigman.kk+cfo@gmail.com",
         "subject": "=[CFO Approval Required] Invoice - {{ $('Call /extract API').first().json.vendor_normalized || $('Call /extract API').first().json.vendor_raw }} / {{ $('Call /extract API').first().json.invoice_number }}",
         "message": "=High-value invoice escalated for CFO approval:\n\nVendor: {{ $('Call /extract API').first().json.vendor_normalized }}\nInvoice #: {{ $('Call /extract API').first().json.invoice_number }}\nDate: {{ $('Call /extract API').first().json.invoice_date }}\nTotal: {{ $('Call /extract API').first().json.currency }} {{ $('Call /extract API').first().json.total }}\nDuplicate risk: {{ $('Call /extract API').first().json.duplicate_risk }}\nWarnings: {{ ($('Call /extract API').first().json.warnings || []).join(', ') || 'none' }}",
         "responseType": "customForm",
@@ -819,7 +819,7 @@
     },
     {
       "parameters": {
-        "sendTo": "EXCEPTION_NOTIFY_EMAIL_PLACEHOLDER",
+        "sendTo": "enigman.kk+exceptions@gmail.com",
         "subject": "=[Exception] Invoice needs review - {{ $('Call /extract API').item.json.vendor_normalized || $('Call /extract API').item.json.vendor_raw }} / {{ $('Call /extract API').item.json.invoice_number }}",
         "emailType": "text",
         "message": "=An invoice was routed to the Exceptions sheet and needs human review.\n\nVendor: {{ $('Call /extract API').item.json.vendor_normalized || $('Call /extract API').item.json.vendor_raw }}\nInvoice #: {{ $('Call /extract API').item.json.invoice_number }}\nTotal: {{ $('Call /extract API').item.json.currency }} {{ $('Call /extract API').item.json.total }}\nException(s): {{ ($('Call /validate API').item.json.exceptions || []).map(e => (e.type + ': ' + e.message)).join('; ') || ($('Call /extract API').item.json.warnings || []).join('; ') || 'Exception detected' }}\n\nStatus: open. Review the Exceptions sheet to clear, re-route, or force-approve.",
