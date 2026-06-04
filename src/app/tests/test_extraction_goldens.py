@@ -1,9 +1,8 @@
 """Tests for invoice extraction pipeline.
 
 Verifies:
-- AC2.1: Valid text returns InvoiceExtracted with all required fields
+- AC2.1: Valid PDF returns InvoiceExtracted with all required fields
 - AC2.2: confidence_overall reflects readability
-- AC2.7: LlamaParse fallback to PDF.co when LlamaParse raises
 - AC5.1: Vendor normalization exact lookup against vendors.json
 - AC5.2: Vendor normalization fuzzy matching via rapidfuzz at ≥88 score
 - AC5.3: Vendor normalization LLM fallback with auto-promotion to vendors.json
@@ -70,11 +69,14 @@ def make_valid_tool_input() -> dict:
     }
 
 
-class TestExtract:
-    """Test extract() function."""
+_FAKE_PDF = b"%PDF-1.4 fake pdf bytes"
 
-    def test_ac21_valid_text_returns_invoice_extracted(self) -> None:
-        """AC2.1: Valid text returns InvoiceExtracted with all required fields."""
+
+class TestExtract:
+    """Test extract() function — Gemini receives PDF bytes directly."""
+
+    def test_ac21_valid_pdf_returns_invoice_extracted(self) -> None:
+        """AC2.1: Valid PDF bytes return InvoiceExtracted with all required fields."""
         with patch("google.genai.Client") as mock_model_cls:
             mock_client = MagicMock()
             mock_model_cls.return_value = mock_client
@@ -83,7 +85,7 @@ class TestExtract:
             )
 
             result = extract(
-                raw_text="Invoice for 100 widgets",
+                pdf_bytes=_FAKE_PDF,
                 file_hash="abc123",
                 file_name="invoice.pdf",
                 api_key="test-key",
@@ -106,7 +108,7 @@ class TestExtract:
             mock_instance.models.generate_content.return_value = make_gemini_tool_response(data)
 
             result = extract(
-                raw_text="Clean digital invoice",
+                pdf_bytes=_FAKE_PDF,
                 file_hash="hash1",
                 file_name="clean.pdf",
                 api_key="test-key",
@@ -125,7 +127,7 @@ class TestExtract:
             mock_instance.models.generate_content.return_value = make_gemini_tool_response(data)
 
             result = extract(
-                raw_text="Blurry scanned invoice with poor OCR",
+                pdf_bytes=_FAKE_PDF,
                 file_hash="hash2",
                 file_name="scanned.pdf",
                 api_key="test-key",
@@ -142,7 +144,7 @@ class TestExtract:
             mock_instance.models.generate_content.side_effect = Exception("API error")
 
             result = extract(
-                raw_text="Some invoice text",
+                pdf_bytes=_FAKE_PDF,
                 file_hash="hash3",
                 file_name="test.pdf",
                 api_key="test-key",
@@ -155,13 +157,12 @@ class TestExtract:
         with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
             mock_model_cls.return_value = mock_instance
-            # Response with no candidates → IndexError caught internally
             response = MagicMock()
             response.candidates = []
             mock_instance.models.generate_content.return_value = response
 
             result = extract(
-                raw_text="Some text",
+                pdf_bytes=_FAKE_PDF,
                 file_hash="hash4",
                 file_name="test.pdf",
                 api_key="test-key",
@@ -174,12 +175,11 @@ class TestExtract:
         with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
             mock_model_cls.return_value = mock_instance
-            # Missing required fields
-            bad_data = {"vendor_raw": "test"}
+            bad_data = {"vendor_raw": "test"}  # Missing required fields
             mock_instance.models.generate_content.return_value = make_gemini_tool_response(bad_data)
 
             result = extract(
-                raw_text="Some text",
+                pdf_bytes=_FAKE_PDF,
                 file_hash="hash6",
                 file_name="test.pdf",
                 api_key="test-key",
@@ -189,15 +189,11 @@ class TestExtract:
 
 
 class TestParseAndExtract:
-    """Test parse_and_extract() with fallback logic."""
+    """Test parse_and_extract() — thin wrapper around extract()."""
 
-    def test_ac27_llamaparse_success(self) -> None:
-        """AC2.7: On LlamaParse success, extract the result."""
-        with patch("google.genai.Client") as mock_model_cls, \
-             patch("app.services.parser_llamaparse.parse_pdf") as mock_llama, \
-             patch("app.services.parser_pdfco.parse_pdf") as mock_pdfco:
-
-            mock_llama.return_value = "Invoice for 100 widgets at $100 each"
+    def test_parse_and_extract_success(self) -> None:
+        """parse_and_extract() delegates to extract() and returns result."""
+        with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
             mock_model_cls.return_value = mock_instance
             mock_instance.models.generate_content.return_value = make_gemini_tool_response(
@@ -205,86 +201,34 @@ class TestParseAndExtract:
             )
 
             result = parse_and_extract(
-                pdf_bytes=b"fake pdf",
+                pdf_bytes=_FAKE_PDF,
                 file_hash="hash7",
                 file_name="test.pdf",
-                llama_api_key="llama-key",
-                pdfco_api_key="pdfco-key",
                 gemini_api_key="gemini-key",
             )
 
             assert result is not None
-            mock_llama.assert_called_once()
-            mock_pdfco.assert_not_called()
+            assert result.vendor_raw == "Acme Corp"
 
-    def test_ac27_llamaparse_fails_fallback_to_pdfco(self) -> None:
-        """AC2.7: When LlamaParse raises, fall back to PDF.co."""
-        with patch("google.genai.Client") as mock_model_cls, \
-             patch("app.services.parser_llamaparse.parse_pdf") as mock_llama, \
-             patch("app.services.parser_pdfco.parse_pdf") as mock_pdfco:
-
-            mock_llama.side_effect = RuntimeError("llamaparse failed")
-            mock_pdfco.return_value = "Invoice text from pdfco"
+    def test_parse_and_extract_gemini_exception_returns_none(self) -> None:
+        """When Gemini raises, parse_and_extract() returns None."""
+        with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
             mock_model_cls.return_value = mock_instance
-            mock_instance.models.generate_content.return_value = make_gemini_tool_response(
-                make_valid_tool_input()
-            )
+            mock_instance.models.generate_content.side_effect = Exception("API error")
 
             result = parse_and_extract(
-                pdf_bytes=b"fake pdf",
+                pdf_bytes=_FAKE_PDF,
                 file_hash="hash8",
                 file_name="test.pdf",
-                llama_api_key="llama-key",
-                pdfco_api_key="pdfco-key",
-                gemini_api_key="gemini-key",
-            )
-
-            assert result is not None
-            mock_llama.assert_called_once()
-            mock_pdfco.assert_called_once()
-
-    def test_ac27_both_parsers_fail_returns_none(self) -> None:
-        """AC2.7: When both parsers fail, return None."""
-        with patch("app.services.parser_llamaparse.parse_pdf") as mock_llama, \
-             patch("app.services.parser_pdfco.parse_pdf") as mock_pdfco:
-
-            mock_llama.side_effect = RuntimeError("llamaparse failed")
-            mock_pdfco.side_effect = RuntimeError("pdfco failed")
-
-            result = parse_and_extract(
-                pdf_bytes=b"fake pdf",
-                file_hash="hash9",
-                file_name="test.pdf",
-                llama_api_key="llama-key",
-                pdfco_api_key="pdfco-key",
-                gemini_api_key="gemini-key",
-            )
-
-            assert result is None
-
-    def test_parse_and_extract_empty_text_returns_none(self) -> None:
-        """When parser returns empty text, return None."""
-        with patch("app.services.parser_llamaparse.parse_pdf") as mock_llama:
-            mock_llama.return_value = ""
-
-            result = parse_and_extract(
-                pdf_bytes=b"fake pdf",
-                file_hash="hash10",
-                file_name="test.pdf",
-                llama_api_key="llama-key",
-                pdfco_api_key="pdfco-key",
                 gemini_api_key="gemini-key",
             )
 
             assert result is None
 
     def test_parse_and_extract_extraction_failure_returns_none(self) -> None:
-        """When extraction fails, return None."""
-        with patch("google.genai.Client") as mock_model_cls, \
-             patch("app.services.parser_llamaparse.parse_pdf") as mock_llama:
-
-            mock_llama.return_value = "Some invoice text"
+        """When extraction validation fails, return None."""
+        with patch("google.genai.Client") as mock_model_cls:
             mock_instance = MagicMock()
             mock_model_cls.return_value = mock_instance
             mock_instance.models.generate_content.return_value = make_gemini_tool_response(
@@ -292,11 +236,9 @@ class TestParseAndExtract:
             )
 
             result = parse_and_extract(
-                pdf_bytes=b"fake pdf",
+                pdf_bytes=_FAKE_PDF,
                 file_hash="hash11",
                 file_name="test.pdf",
-                llama_api_key="llama-key",
-                pdfco_api_key="pdfco-key",
                 gemini_api_key="gemini-key",
             )
 

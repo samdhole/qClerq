@@ -9,11 +9,9 @@ from google.genai import types
 
 from app.config import GEMINI_MODEL
 from app.schemas.invoice import InvoiceExtracted
-from app.services import parser_llamaparse, parser_pdfco
 
 _PROMPT_PATH = pathlib.Path(__file__).parent.parent / "prompts" / "invoice_extraction.md"
 _MAX_TOKENS = 4096
-_MAX_RAW_TEXT = 50_000
 
 # Gemini function declaration for structured invoice extraction.
 # maxLength is not supported in Gemini schemas — omitted.
@@ -81,26 +79,26 @@ _SYSTEM_SUFFIX = (
 
 
 def extract(
-    raw_text: str,
+    pdf_bytes: bytes,
     file_hash: str,
     file_name: str,
     api_key: str,
     model: str = GEMINI_MODEL,
 ) -> InvoiceExtracted | None:
-    """Extract invoice fields from raw text using Gemini function calling.
+    """Extract invoice fields directly from PDF bytes using Gemini native vision.
 
     Returns None on any failure. Never raises.
     """
     system_prompt = _PROMPT_PATH.read_text(encoding="utf-8") + _SYSTEM_SUFFIX
 
-    # Cap raw_text to prevent prompt injection via large payloads (C-1)
-    truncated = raw_text[:_MAX_RAW_TEXT]
-
     try:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
             model=model,
-            contents=f"Extract all invoice fields:\n\n{truncated}",
+            contents=[
+                types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+                "Extract all invoice fields from this PDF invoice.",
+            ],
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 max_output_tokens=_MAX_TOKENS,
@@ -142,32 +140,14 @@ def parse_and_extract(
     pdf_bytes: bytes,
     file_hash: str,
     file_name: str,
-    llama_api_key: str,
-    pdfco_api_key: str,
     gemini_api_key: str,
     gemini_model: str = GEMINI_MODEL,
 ) -> InvoiceExtracted | None:
-    """Parse PDF and extract fields. Falls back to PDF.co if LlamaParse fails.
+    """Extract invoice fields from PDF bytes using Gemini native PDF vision.
 
-    Returns None if both parsers fail or extraction fails.
+    Returns None if extraction fails.
     """
-    raw_text: str | None = None
-
-    try:
-        raw_text = parser_llamaparse.parse_pdf(pdf_bytes, file_name, llama_api_key)
-    except Exception:
-        pass
-
-    if not raw_text:
-        try:
-            raw_text = parser_pdfco.parse_pdf(pdf_bytes, file_name, pdfco_api_key)
-        except Exception:
-            return None
-
-    if not raw_text:
-        return None
-
-    return extract(raw_text, file_hash, file_name, gemini_api_key, gemini_model)
+    return extract(pdf_bytes, file_hash, file_name, gemini_api_key, gemini_model)
 
 
 def _deep_convert(obj: Any) -> Any:

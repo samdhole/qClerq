@@ -74,8 +74,6 @@ async def extract_invoice(
         pdf_bytes=pdf_bytes,
         file_hash=file_hash,
         file_name=file_name,
-        llama_api_key=settings.llama_cloud_api_key,
-        pdfco_api_key=settings.pdfco_api_key,
         gemini_api_key=settings.gemini_api_key,
         gemini_model=settings.gemini_model,
     )

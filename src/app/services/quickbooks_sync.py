@@ -15,11 +15,12 @@ def _create_bill_sync(req: SyncRequest, settings: Any, account_id: str) -> str:
     from quickbooks.objects.vendor import Vendor
     from intuitlib.client import AuthClient
 
+    qb_env = getattr(settings, "qb_environment", "sandbox")
     auth_client = AuthClient(
         client_id=settings.qb_client_id,
         client_secret=settings.qb_client_secret,
         redirect_uri="https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl",
-        environment="production",
+        environment=qb_env,
     )
     qb = QuickBooks(
         auth_client=auth_client,

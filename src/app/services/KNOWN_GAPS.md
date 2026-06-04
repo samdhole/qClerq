@@ -27,13 +27,14 @@ Affected code: `src/app/services/jobber_sync.py`
 
 ## QuickBooks Expense Account ID
 
-**Status:** Configurable, defaults to "1"
+**Status:** Resolved for sandbox — set to "78" (Purchases account)
 
-The QB expense account ID used when creating bill line items is now configurable via the `QB_DEFAULT_EXPENSE_ACCOUNT_ID` environment variable (defaults to "1"). This value should be verified and customized per client:
+The QB expense account ID is set via `QB_DEFAULT_EXPENSE_ACCOUNT_ID` in `.env`. For the sandbox (Realm ID: 9341457075838103), this is "78" (Purchases). QB Bill #146 confirmed created successfully 2026-06-04.
 
-1. Obtain the correct expense account ID from the client's QuickBooks setup
-2. Set `QB_DEFAULT_EXPENSE_ACCOUNT_ID` in `.env` to match their account structure
-3. Test bill creation with a sample invoice to confirm proper account routing
+For production deployment:
+1. Obtain the correct expense account ID from the client's QuickBooks chart of accounts
+2. Update `QB_DEFAULT_EXPENSE_ACCOUNT_ID` in `.env` accordingly
+3. Verify vendors exist in client QB before processing live invoices
 
 Affected code: `src/app/config.py`, `src/app/services/quickbooks_sync.py`
 

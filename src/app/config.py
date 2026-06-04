@@ -31,8 +31,6 @@ class Settings(BaseSettings):
 
     gemini_model: str = GEMINI_MODEL
 
-    llama_cloud_api_key: str = ""
-    pdfco_api_key: str = ""
     gemini_api_key: str
 
     qb_client_id: str = ""
@@ -40,6 +38,7 @@ class Settings(BaseSettings):
     qb_refresh_token: str = ""
     qb_realm_id: str = ""
     qb_default_expense_account_id: str = "1"
+    qb_environment: str = "sandbox"
 
     jobber_access_token: str = ""
 
