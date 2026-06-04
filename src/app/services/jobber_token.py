@@ -33,7 +33,9 @@ def access_token_is_fresh(token: str, now_epoch: int, skew_seconds: int) -> bool
     """True if the token's expiry is more than `skew_seconds` beyond `now_epoch`.
 
     The skew makes us refresh slightly early so an in-flight request never races the
-    expiry boundary. A malformed token (no readable exp) is treated as stale.
+    expiry boundary. A malformed token (no readable exp) is treated as stale — this
+    assumes Jobber access tokens are JWTs (they are); a non-JWT would force a refresh
+    on every call, so callers relying on this for caching must pass JWT access tokens.
     """
     exp = jwt_exp(token)
     if exp is None:

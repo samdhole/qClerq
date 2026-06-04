@@ -72,9 +72,12 @@ def test_persisted_refresh_token_is_used_next_time():
     with patch("app.services.jobber_auth.httpx.post") as post:
         post.return_value = _resp({"access_token": _jwt(FAR_FUTURE), "refresh_token": "rt-from-store"})
         jobber_auth.get_access_token(_settings(jobber_refresh_token="rt-initial"))
-        sent = post.call_args.kwargs["json"]
+        # OAuth2 token endpoint expects form-urlencoded (RFC 6749 §6) — must use `data=`,
+        # matching the proven-working scripts/jobber_oauth.py::exchange_code, not `json=`.
+        sent = post.call_args.kwargs["data"]
         assert sent["refresh_token"] == "rt-from-store"
         assert sent["grant_type"] == "refresh_token"
+        assert "json" not in post.call_args.kwargs
 
 
 def test_legacy_static_token_when_no_refresh_token():

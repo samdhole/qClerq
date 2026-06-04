@@ -67,9 +67,11 @@ def _save_refresh_token(refresh_token: str) -> None:
 def _refresh(settings: Any, refresh_token: str) -> str:
     """Exchange the refresh token for a fresh access token; persist a rotated refresh
     token if the response returns a new one. Returns the access token. Raises on failure."""
+    # OAuth2 token endpoint is form-urlencoded (RFC 6749 §6) — use data=, matching the
+    # proven-working scripts/jobber_oauth.py::exchange_code against this same endpoint.
     resp = httpx.post(
         _TOKEN_URL,
-        json={
+        data={
             "client_id": getattr(settings, "jobber_client_id", ""),
             "client_secret": getattr(settings, "jobber_client_secret", ""),
             "grant_type": "refresh_token",
