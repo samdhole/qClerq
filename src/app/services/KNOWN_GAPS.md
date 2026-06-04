@@ -25,7 +25,13 @@ For production deployment: run `scripts/jobber_oauth.py` once against the client
 
 ## Jobber Token Refresh
 
-**Status:** Implemented 2026-06-04 ✅
+**Status:** Implemented + live-verified 2026-06-04 ✅
+
+Live check (real Jobber API, account 2434520 "enigman kk's Company"): `jobber_auth`
+refreshed via the form-urlencoded token endpoint → fresh JWT access token (~60 min), a
+real GraphQL `account` query authenticated (HTTP 200), and **refresh-token rotation is
+ON** — the rotated token was persisted to the store (old token discarded), exactly the
+path that would otherwise trigger reuse-detection lockout.
 
 Jobber access tokens expire after ~60 minutes; the **refresh token** is the durable credential. `src/app/services/jobber_auth.py` trades it for access tokens transparently:
 
