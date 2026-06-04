@@ -23,8 +23,6 @@ def test_settings_env(tmp_path_factory):
         "MANAGER_EMAIL=manager@test.local\n"
         "CFO_EMAIL=cfo@test.local\n"
         "SHEET_ID=test-sheet-id\n"
-        "LLAMA_CLOUD_API_KEY=test-llama\n"
-        "PDFCO_API_KEY=test-pdfco\n"
         "GEMINI_API_KEY=test-gemini\n"
         "API_KEY=test-api-key\n"
         "QB_CLIENT_ID=test-qb-id\n"

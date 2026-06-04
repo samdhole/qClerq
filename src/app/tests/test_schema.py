@@ -319,7 +319,6 @@ def test_settings_defaults():
     """Settings applies defaults for optional fields."""
     settings = Settings(_env_file=".env.test")
     assert settings.approval_tier_1_max == 500.0
-    assert settings.llama_cloud_api_key == "test-llama-key"
     assert "client_email" in settings.google_service_account_json
 
 

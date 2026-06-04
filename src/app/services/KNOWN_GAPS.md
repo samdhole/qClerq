@@ -2,27 +2,37 @@
 
 This document tracks explicitly acknowledged gaps and limitations in the qClerq invoice system.
 
+## Gemini Model Pin
+
+**Status:** Hard-coded constant
+
+Extraction uses `gemini-3.1-flash-lite`, defined as `GEMINI_MODEL` in `src/app/config.py`. Vendor matcher LLM fallback also calls Gemini via `genai.Client`. Model changes should be coordinated across:
+
+1. `src/app/config.py` — update `GEMINI_MODEL` constant
+2. `src/app/services/extractor_gemini.py` — uses `GEMINI_MODEL` as default arg
+3. `src/app/services/vendor_matcher.py` — instantiates `genai.Client` directly
+4. Re-run full test suite and validate extraction quality after any model change
+
 ## Jobber GraphQL Field Names
 
-**Status:** Unverified against live schema
+**Status:** Verified against live schema 2026-06-04 ✅
 
-The `ExpenseCreateInput` field names used in `jobber_sync.py` are derived from Jobber API documentation but have not been validated against the live GraphQL schema. Before deploying to production:
+`ExpenseCreateInput` required fields confirmed: `title` (required), `total` (required), `description` (optional), `date` (optional), `jobId` (optional). Live expense creation confirmed: Expense `Z2lkOi8vSm9iYmVyL0V4cGVuc2UvMTg2MTI5NjQ=` created in sandbox account (account_id: 2434520).
 
-1. Verify field names match the current Jobber API schema
-2. Test with a sample expense creation in a non-production Jobber instance
-3. Update field mappings if schema changes are discovered
+OAuth app: "qClerq Invoice Sync" (client_id: e7fbb80b-d38f-45bc-9b83-46721dc5ab4e), scopes: `read_expenses write_expenses`.
 
-Affected code: `src/app/services/jobber_sync.py`
+For production deployment: re-run `scripts/jobber_oauth.py` against the client's Jobber account to get a fresh access token.
 
 ## QuickBooks Expense Account ID
 
-**Status:** Configurable, defaults to "1"
+**Status:** Resolved for sandbox — set to "78" (Purchases account)
 
-The QB expense account ID used when creating bill line items is now configurable via the `QB_DEFAULT_EXPENSE_ACCOUNT_ID` environment variable (defaults to "1"). This value should be verified and customized per client:
+The QB expense account ID is set via `QB_DEFAULT_EXPENSE_ACCOUNT_ID` in `.env`. For the sandbox (Realm ID: 9341457075838103), this is "78" (Purchases). QB Bill #146 confirmed created successfully 2026-06-04.
 
-1. Obtain the correct expense account ID from the client's QuickBooks setup
-2. Set `QB_DEFAULT_EXPENSE_ACCOUNT_ID` in `.env` to match their account structure
-3. Test bill creation with a sample invoice to confirm proper account routing
+For production deployment:
+1. Obtain the correct expense account ID from the client's QuickBooks chart of accounts
+2. Update `QB_DEFAULT_EXPENSE_ACCOUNT_ID` in `.env` accordingly
+3. Verify vendors exist in client QB before processing live invoices
 
 Affected code: `src/app/config.py`, `src/app/services/quickbooks_sync.py`
 
@@ -40,27 +50,18 @@ If multi-worker deployments are planned:
 
 Affected code: `src/app/services/vendor_matcher.py` (lines 13, 81-84)
 
-## Model Pin: Claude Sonnet 4.6
-
-**Status:** Hard-coded constant
-
-All LLM calls (extraction and vendor resolution) use `claude-sonnet-4-6`, defined as `CLAUDE_MODEL` in `src/app/config.py`. Model changes should be coordinated across:
-
-1. `src/app/config.py` — update `CLAUDE_MODEL` constant
-2. `src/app/services/extractor_claude.py` — uses `CLAUDE_MODEL` directly at the `client.messages.create` call site
-3. `src/app/services/vendor_matcher.py` — uses `CLAUDE_MODEL` in `_llm_resolve`
-4. Re-run full test suite and validate extraction quality after any model change
-
 ## Test Coverage
 
 Current test suite covers:
 - Sync flow orchestration (Sheets, QB, Jobber independence)
 - Validation tier assignment and exception routing
-- Extraction fallback (LlamaParse → PDF.co)
+- Extraction (Gemini native PDF vision via mocked `google.genai.Client`)
+- Vendor normalization cascade (exact, fuzzy, LLM, fallback)
 
 Not yet covered by automated tests:
 - Live QB API integration (mocked in tests)
 - Live Jobber GraphQL schema (mocked in tests)
 - Live Google Sheets sync (mocked in tests)
+- Gmail/Drive intake triggers (n8n configuration — manual test only)
 
 Manual integration testing required before production deployment.

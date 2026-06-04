@@ -1,0 +1,64 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1059 >>
+stream
+BT /F1 11 Tf 50 742 Td 14 TL
+([ SCANNED DOCUMENT - POOR QUALITY ]) Tj T*
+() Tj T*
+(   I N V O I C E) Tj T*
+() Tj T*
+(Vendor: V3nd0r N4m3 C0rp???  \(illegible\)) Tj T*
+(Address: [smudged]) Tj T*
+(Tax ID: XX-XXXXXXX) Tj T*
+() Tj T*
+(Bill To: [torn section]) Tj T*
+(Invoice Number:               <-- MISSING) Tj T*
+(Invoice Date: 2026-03-??) Tj T*
+(Due Date: 2026-01-15         <-- BEFORE invoice date) Tj T*
+() Tj T*
+(ITEMS) Tj T*
+() Tj T*
+(  Consulting services \(partial\)       $???) Tj T*
+(  Materials - qty unknown              $312.50) Tj T*
+(  [line obscured]                         ???) Tj T*
+() Tj T*
+(Subtotal:    $750.00) Tj T*
+(Tax:          $95.00) Tj T*
+(Shipping:     $30.00) Tj T*
+(              --------) Tj T*
+(Total Due:   $600.00          <-- DOES NOT MATCH subtotal+tax+shipping) Tj T*
+() Tj T*
+(Payment Terms: [illegible]) Tj T*
+() Tj T*
+(NOTE: This document has been digitally reconstructed from) Tj T*
+(a damaged original. Some fields may be inaccurate.) Tj T*
+(Please contact sender to verify amounts before payment.) Tj T*
+() Tj T*
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001352 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1422
+%%EOF

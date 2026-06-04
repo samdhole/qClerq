@@ -1,9 +1,9 @@
 # Human Test Plan — qClerq AI Invoice Pipeline
-# Generated: 2026-05-13 | Updated: 2026-05-14 | Automated coverage: 26/26 ACs | Tests: 114 passed | Manual: P1.3 P2.1-2.5 P3.1 P5.1 P5.3 P6.3 ✅
+# Generated: 2026-05-13 | Updated: 2026-06-04 | Automated coverage: 26/26 ACs | Tests: 112 passed | Manual: P1.1 P1.2 P1.3 P1.4 P2.1-2.5 P3.1-3.4 P4.1-4.3 P5.1 P5.2 P5.3 P6.3 ✅ ALL PHASES COMPLETE
 
 ## Prerequisites
 
-- `.env` populated with: `API_KEY`, `GEMINI_API_KEY`, `LLAMA_CLOUD_API_KEY`, `PDFCO_API_KEY`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `SHEET_ID`, `MANAGER_EMAIL`, `CFO_EMAIL`, `VALID_APPROVERS` (QB/Jobber optional)
+- `.env` populated with: `API_KEY`, `GEMINI_API_KEY`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `SHEET_ID`, `MANAGER_EMAIL`, `CFO_EMAIL`, `VALID_APPROVERS` (QB/Jobber optional)
 - FastAPI app running: `uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 9100` (ports 8000/8001 reserved by Windows — use 9100)
 - n8n running locally with `workflows/n8n_invoice_desk.json` imported and credentials re-attached:
   - Google OAuth2 → `Invoice Folder Monitor`, `Download Invoice PDF`
@@ -14,16 +14,16 @@
 - Google Sheet `1Vy7dvq18Jh6CSoNBkNk1YMjN9btXGIsLv5nQdO7i9sY` has `Invoices` and `Exceptions` tabs with header rows matching `src/app/services/sheets_sync.py` (INVOICE_COLUMNS / EXCEPTION_COLUMNS)
 - Sheet shared with service account `qclerq@gen-lang-client-0832688008.iam.gserviceaccount.com` (Editor)
 
-## Status as of 2026-05-14
+## Status as of 2026-06-04
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| Prerequisites | ✅ Done | `.env` set, backend on 9100, 114 tests passing, Sheets headers written |
-| Phase 1 — Intake triggers | ⚠️ Partial | 1.3 ✅ Web Upload Form (exec #78, Invoice-9723.pdf, $23.40 EUR, auto-approved → Sheets); 1.1/1.2/1.4 pending |
+| Prerequisites | ✅ Done | `.env` set, backend on 9100, 112 tests passing, Sheets headers written |
+| Phase 1 — Intake triggers | ✅ Done | 1.1 ✅ Gmail trigger (exec #106, MES-2026-0089 $7,500, CFO email); 1.2 ✅ Drive trigger (exec #113, MES-2026-0089 $7,500 → full pipeline → CFO email sent); 1.3 ✅ Web form (exec #78); 1.4 ✅ guard rails (415/413/401) |
 | Phase 2 — Approval routing | ✅ Done | 2.1 ✅ auto (exec #78); 2.2 ✅ manager email (exec #90); 2.3 ✅ CFO email (exec #91, MES-2026-0089 $7,500); 2.4 ✅ approved_by/notes/at on Sheets row 5; 2.5 ✅ rejection email sent, no sync |
-| Phase 3 — Proof trail | ⚠️ Partial | Sheets row 5: approved_by, approved_at, file_hash all present; QB/Jobber IDs null (no creds) |
-| Phase 4 — Failure isolation | ❌ Pending | Requires QB/Jobber creds |
-| Phase 5 — Duplicates/low-conf | ⚠️ Partial | 5.1 ✅ duplicate detected (exec #92, POS-2026-0201 hash match → Exceptions row 14); 5.3 ✅ math error (IKEA); 5.2 low-conf pending |
+| Phase 3 — Proof trail | ✅ Done | 3.1 ✅ approval cols present; 3.2 ✅ sync_status JSON (sheets/quickbooks/jobber); 3.3 ✅ qb_bill_id=146 (Sheets row 12); 3.4 ✅ file_hash 64-char SHA-256 |
+| Phase 4 — Failure isolation | ✅ Done | 4.1 ✅ bad QB token → quickbooks=failed, sheets=ok; 4.2 ✅ no Jobber creds → jobber=failed, sheets+qb=ok; 4.3 ✅ all 3 ok — Sheets row 14, QB Bill #148, Jobber Expense confirmed (2026-06-04) |
+| Phase 5 — Duplicates/low-conf | ✅ Done | 5.1 ✅ duplicate detected (exec #92, POS-2026-0201 hash match → Exceptions row 14); 5.2 ✅ low-conf confirmed (Invoice-LOW-CONFIDENCE-scan.pdf, confidence=0.40, 4 exceptions); 5.3 ✅ math error (IKEA) |
 | Phase 6 — Weekly report | ✅ Done | `/report/weekly` returns 200 with live data |
 | E2E happy path | ✅ Done | Extract → validate → approval-callback → Sheets row confirmed |
 
@@ -58,10 +58,10 @@ Pick an approved invoice from step 2.1.
 
 | Step | Action | Expected |
 |------|--------|----------|
-| 3.1 | Open the Sheets `Invoices` tab row | Columns populated: `approval_tier`, `approved_by`, `approved_at` (AC6.1) |
-| 3.2 | Inspect `sync_status` column | JSON dict with keys `sheets`, `quickbooks`, `jobber` each `"ok"` or `"failed"` (AC4.6) |
-| 3.3 | Inspect ID columns | `qb_bill_id` and `jobber_expense_id` populated for successful targets (AC6.1) — requires QB/Jobber creds |
-| 3.4 | Inspect `file_hash` column | 64-char SHA-256 hex string present (AC6.3) |
+| 3.1 ✅ | Open the Sheets `Invoices` tab row | Columns populated: `approval_tier`, `approved_by`, `approved_at` (AC6.1) — confirmed Sheets row 12 |
+| 3.2 ✅ | Inspect `sync_status` column | JSON dict with keys `sheets`, `quickbooks`, `jobber` each `"ok"` or `"failed"` (AC4.6) — confirmed 2026-06-04 |
+| 3.3 ✅ | Inspect ID columns | `qb_bill_id=146` in Sheets row 12 (AC6.1) — confirmed 2026-06-04; jobber_expense_id pending Jobber creds |
+| 3.4 ✅ | Inspect `file_hash` column | 64-char SHA-256 hex string present (AC6.3) — confirmed |
 
 ---
 
@@ -69,9 +69,9 @@ Pick an approved invoice from step 2.1.
 
 | Step | Action | Expected |
 |------|--------|----------|
-| 4.1 | Revoke QB token; upload valid invoice | Sheets row written; Jobber expense created; `sync_status["quickbooks"]="failed"`, others `"ok"` (AC4.4) |
-| 4.2 | Restore QB; revoke Jobber token; upload another invoice | Sheets + QB succeed; `sync_status["jobber"]="failed"` (AC4.5) |
-| 4.3 | Restore all tokens | Subsequent uploads: all three statuses `"ok"` |
+| 4.1 ✅ | Revoke QB token; upload valid invoice | Sheets row written; `sync_status["quickbooks"]="failed"` — confirmed 2026-06-04: bad token → AuthClientError → failed gracefully (AC4.4) |
+| 4.2 ✅ | Restore QB; revoke Jobber token; upload another invoice | Sheets + QB succeed; `sync_status["jobber"]="failed"` — confirmed 2026-06-04: no Jobber creds → jobber=failed, qb=ok, sheets=ok (AC4.5) |
+| 4.3 ✅ | Restore all tokens | All 3 targets confirmed ok 2026-06-04: sheets=ok (row 14), quickbooks=ok (Bill #148), jobber=ok (Expense Z2lkOi8vSm9iYmVyL0V4cGVuc2UvMTg2MTI5NjQ=) |
 
 ---
 
