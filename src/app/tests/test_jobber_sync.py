@@ -136,9 +136,13 @@ def test_idempotent_retry_returns_existing_expense_without_creating():
         assert mock_post.call_count == 1
 
 
-def test_idempotency_query_failure_does_not_block_create():
-    """If the idempotency search raises (e.g. unsupported query arg), the expense is
-    still created (H-1: a query failure must not block the create)."""
+def test_idempotency_query_failure_blocks_create():
+    """H-3 (fail-closed): if the idempotency search raises we cannot prove no duplicate
+    exists, so _create_expense_sync must raise rather than creating a potential second expense.
+
+    The exception propagates to _run_sync's per-target try/except, which marks
+    sync_status['jobber']='failed' for human retry — no silent duplicate.
+    """
     inv = make_test_invoice(file_hash="job-qfail", invoice_number="JOB-QFAIL-001")
     sync_req = SyncRequest(
         invoice=inv,
@@ -149,26 +153,16 @@ def test_idempotency_query_failure_does_not_block_create():
     )
 
     with patch("app.services.jobber_sync.httpx.post") as mock_post:
-        # First call (the search) raises; second call (the create) succeeds.
-        create_response = MagicMock()
-        create_response.json.return_value = {
-            "data": {
-                "expenseCreate": {
-                    "expense": {"id": "fresh-exp-1", "total": 110.0},
-                    "userErrors": [],
-                }
-            }
-        }
-        mock_post.side_effect = [RuntimeError("expenses query unsupported"), create_response]
+        # The search raises — must NOT fall through to a create call.
+        mock_post.side_effect = RuntimeError("expenses query unsupported")
 
         from app.services.jobber_sync import _create_expense_sync
 
-        expense_id, created = _create_expense_sync(sync_req, "test-access-token")
+        with pytest.raises(RuntimeError, match="expenses query unsupported"):
+            _create_expense_sync(sync_req, "test-access-token")
 
-        assert expense_id == "fresh-exp-1"
-        assert created is True
-        # Both the (failed) search and the (successful) create were attempted.
-        assert mock_post.call_count == 2
+        # Only one call was made (the failed search) — no create was attempted.
+        assert mock_post.call_count == 1
 
 
 @pytest.mark.asyncio

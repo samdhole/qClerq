@@ -204,9 +204,13 @@ def test_idempotent_retry_returns_existing_bill_without_creating():
                     assert not mock_vendor_class.where.called
 
 
-def test_idempotency_query_failure_does_not_block_create():
-    """If the idempotency query raises, the Bill is still created (H-1: a query
-    failure must not block the create)."""
+def test_idempotency_query_failure_blocks_create():
+    """H-3 (fail-closed): if the idempotency query raises we cannot prove no duplicate
+    exists, so _create_bill_sync must raise rather than creating a potential second Bill.
+
+    The exception propagates to _run_sync's per-target try/except, which marks
+    sync_status['quickbooks']='failed' for human retry — no silent duplicate.
+    """
     inv = make_test_invoice(file_hash="qfail-hash", invoice_number="QB-QFAIL-001")
     sync_req = SyncRequest(
         invoice=inv,
@@ -221,31 +225,23 @@ def test_idempotency_query_failure_does_not_block_create():
 
     with patch("intuitlib.client.AuthClient"):
         with patch("quickbooks.QuickBooks") as mock_qb_class:
-            with patch("quickbooks.objects.vendor.Vendor") as mock_vendor_class:
+            with patch("quickbooks.objects.vendor.Vendor"):
                 with patch("quickbooks.objects.base.Ref"):
                     with patch("quickbooks.objects.bill.Bill") as mock_bill_class:
                         with patch("quickbooks.objects.detailline.AccountBasedExpenseLine"):
                             with patch("quickbooks.objects.detailline.AccountBasedExpenseLineDetail"):
                                 mock_qb_class.return_value = MagicMock()
 
-                                # Idempotency query raises — must fall through to create.
+                                # Idempotency query raises — must NOT fall through to create.
                                 mock_bill_class.where.side_effect = RuntimeError("QBO query down")
-
-                                mock_vendor = MagicMock()
-                                mock_vendor.Id = "VENDOR-1"
-                                mock_vendor_class.where.return_value = [mock_vendor]
-
-                                created_bill = MagicMock()
-                                created_bill.Id = "FRESH-BILL-1"
-                                mock_bill_class.return_value = created_bill
 
                                 from app.services.quickbooks_sync import _create_bill_sync
 
-                                bill_id, created = _create_bill_sync(sync_req, mock_settings, "1")
+                                with pytest.raises(RuntimeError, match="QBO query down"):
+                                    _create_bill_sync(sync_req, mock_settings, "1")
 
-                                assert bill_id == "FRESH-BILL-1"
-                                assert created is True
-                                assert created_bill.save.called
+                                # No Bill was saved.
+                                assert not mock_bill_class.return_value.save.called
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from app.schemas.invoice import ExceptionItem, InvoiceExtracted, ValidationResult
 from app.services.validator import validate
 
@@ -147,16 +149,17 @@ class TestRequiredFields:
             for e in result.exceptions
         )
 
-    def test_zero_total(self):
-        """AC2.5: Zero total is valid (not missing)."""
-        inv = make_invoice(total=0.0)
-        result = validate(inv, TIER1_MAX, TIER2_MAX)
-        # Zero total itself is not invalid, but may have math errors
-        # This test just confirms it's not treated as missing
-        assert not any(
-            e.type == "missing_required_field" and "total" in e.message
-            for e in result.exceptions
-        )
+    def test_zero_total_is_now_schema_error(self):
+        """H-4: zero total is rejected by the schema before reaching the validator.
+
+        Previously this test asserted "zero total is not treated as missing_required_field"
+        because InvoiceExtracted accepted total=0.0. H-4 adds Field(gt=0), so total=0.0
+        raises ValidationError at construction — the validator never sees it.
+        """
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            make_invoice(total=0.0)
 
     def test_missing_invoice_date(self):
         """AC2.5: Missing invoice_date produces exception."""

@@ -72,12 +72,11 @@ def _create_bill_sync(req: SyncRequest, settings: Any, account_id: str) -> tuple
     )
 
     # Idempotency check-before-create: if a Bill tagged with this file_hash already
-    # exists, return it instead of creating a duplicate (H-1). Best-effort — a query
-    # failure must NOT block the create, so we swallow it and fall through to create.
-    try:
-        existing_id = _find_existing_bill_id(req, qb)
-    except Exception:
-        existing_id = None
+    # exists, return it instead of creating a duplicate.
+    # H-3 (fail-closed): if the lookup fails we cannot prove no duplicate exists, so we
+    # raise and let _run_sync mark sync_status['quickbooks']='failed' for human retry.
+    # Swallowing the error and creating anyway risks posting the same Bill twice.
+    existing_id = _find_existing_bill_id(req, qb)
     if existing_id is not None:
         return existing_id, False
 

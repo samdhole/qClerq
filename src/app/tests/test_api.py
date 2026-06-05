@@ -109,13 +109,18 @@ class TestApprovalCallbackEndpoint:
     """Test /approval-callback endpoint (AC3.4, AC3.5)."""
 
     def test_approval_callback_rejects_missing_approved_by(self, client):
-        """POST /approval-callback without approved_by returns 422 (AC3.5)."""
+        """POST /approval-callback without approved_by returns 422 (AC3.5).
+
+        Uses a manager-tier total (1000.0) so the auto-tier guard does not fire
+        before reaching the empty approved_by check.  Previously total=108 hit
+        the auto-tier guard first, making this test pass for the wrong reason.
+        """
         req = {
-            "invoice": make_extracted(),
+            "invoice": make_extracted(subtotal=920.0, tax=80.0, total=1000.0),
             "approved_by": "",  # empty/missing
             "approval_notes": "",
             "approved_at": "2026-05-13T10:00:00Z",
-            "approval_tier": "auto",
+            "approval_tier": "manager",
         }
         r = client.post("/approval-callback", json=req)
         assert r.status_code == 422
@@ -238,6 +243,122 @@ class TestSyncEndpoint:
                         assert r.status_code == 200
 
 
+class TestWriteEndpointValidation:
+    """H-1: write endpoints must reject invalid invoices before syncing."""
+
+    def test_sync_rejects_invalid_invoice_math_mismatch(self, client):
+        """POST /sync with a math-mismatch invoice must return 422 without writing anywhere.
+
+        Reproduces the H-1 bypass: a caller with the API key skips /validate and posts
+        directly to /sync. The endpoint must re-validate and reject is_clean=False.
+        """
+        with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets, \
+             patch("app.services.quickbooks_sync.sync") as mock_qb, \
+             patch("app.services.jobber_sync.sync") as mock_jobber:
+            req = {
+                # subtotal=1.00 + tax=0 ≠ total=100.00 → math error → is_clean=False
+                "invoice": make_extracted(subtotal=1.0, tax=0.0, total=100.0),
+                "approved_by": "auto-approved",
+                "approval_notes": "",
+                "approved_at": "2026-05-13T10:00:00Z",
+                "approval_tier": "auto",
+            }
+            r = client.post("/sync", json=req)
+            assert r.status_code == 422
+            assert "invalid" in r.json()["detail"].lower() or "validation" in r.json()["detail"].lower()
+            mock_sheets.assert_not_called()
+            mock_qb.assert_not_called()
+            mock_jobber.assert_not_called()
+
+    def test_approval_callback_rejects_invalid_invoice_math_mismatch(self, client):
+        """POST /approval-callback with a math-mismatch invoice must return 422 without writing.
+
+        Same H-1 bypass vector as /sync but for human-approved invoices.
+        """
+        with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets, \
+             patch("app.services.quickbooks_sync.sync") as mock_qb, \
+             patch("app.services.jobber_sync.sync") as mock_jobber:
+            req = {
+                "invoice": make_extracted(
+                    total=1000.0, subtotal=1.0, tax=0.0,  # math mismatch
+                ),
+                "approved_by": "manager@example.com",
+                "approval_notes": "Approved",
+                "approved_at": "2026-05-13T10:00:00Z",
+                "approval_tier": "manager",
+            }
+            r = client.post("/approval-callback", json=req)
+            assert r.status_code == 422
+            assert "invalid" in r.json()["detail"].lower() or "validation" in r.json()["detail"].lower()
+            mock_sheets.assert_not_called()
+            mock_qb.assert_not_called()
+            mock_jobber.assert_not_called()
+
+
+class TestTierAwareApprover:
+    """H-2: approver identity must match the invoice's approval tier."""
+
+    def test_approval_callback_rejects_manager_approving_cfo_tier_invoice(self, client):
+        """POST /approval-callback: manager email cannot approve a CFO-tier (>5000) invoice.
+
+        Reproduces H-2: the server recomputes tier='cfo' but must now also require that
+        approved_by matches cfo_email, not just any entry in valid_approvers.
+        """
+        with patch("app.services.sheets_sync.write_invoice_row"), \
+             patch("app.services.quickbooks_sync.sync"), \
+             patch("app.services.jobber_sync.sync"):
+            req = {
+                "invoice": make_extracted(total=10000.0, subtotal=9000.0, tax=1000.0),
+                "approved_by": "manager@example.com",  # manager identity, not CFO
+                "approval_notes": "Approved",
+                "approved_at": "2026-05-13T10:00:00Z",
+                "approval_tier": "cfo",
+            }
+            r = client.post("/approval-callback", json=req)
+            assert r.status_code == 422
+
+    def test_approval_callback_accepts_cfo_approving_cfo_tier_invoice(self, client):
+        """POST /approval-callback: settings.cfo_email CAN approve a CFO-tier invoice.
+
+        Uses cfo@test.local which matches settings.cfo_email in the test fixture.
+        """
+        with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets, \
+             patch("app.services.sheets_sync.update_sync_status"), \
+             patch("app.services.quickbooks_sync.sync") as mock_qb, \
+             patch("app.services.jobber_sync.sync") as mock_jobber:
+            mock_sheets.return_value = "7"
+            mock_qb.return_value = MagicMock(qb_bill_id="QB-CFO-1", sync_status={"quickbooks": "ok"})
+            mock_jobber.return_value = MagicMock(jobber_expense_id="JOB-CFO-1", sync_status={"jobber": "ok"})
+            req = {
+                "invoice": make_extracted(total=10000.0, subtotal=9000.0, tax=1000.0),
+                "approved_by": "cfo@test.local",  # matches settings.cfo_email — must pass
+                "approval_notes": "Approved",
+                "approved_at": "2026-05-13T10:00:00Z",
+                "approval_tier": "cfo",
+            }
+            r = client.post("/approval-callback", json=req)
+            assert r.status_code == 200
+
+    def test_approval_callback_accepts_cfo_approving_manager_tier_invoice(self, client):
+        """CFO can approve a manager-tier invoice (CFO supersedes manager authority)."""
+        with patch("app.services.sheets_sync.write_invoice_row") as mock_sheets, \
+             patch("app.services.sheets_sync.update_sync_status"), \
+             patch("app.services.quickbooks_sync.sync") as mock_qb, \
+             patch("app.services.jobber_sync.sync") as mock_jobber:
+            mock_sheets.return_value = "8"
+            mock_qb.return_value = MagicMock(qb_bill_id="QB-CFO-2", sync_status={"quickbooks": "ok"})
+            mock_jobber.return_value = MagicMock(jobber_expense_id="JOB-CFO-2", sync_status={"jobber": "ok"})
+            req = {
+                "invoice": make_extracted(total=1000.0, subtotal=920.0, tax=80.0),
+                "approved_by": "cfo@test.local",  # CFO approving manager-tier — must pass
+                "approval_notes": "Approved",
+                "approved_at": "2026-05-13T10:00:00Z",
+                "approval_tier": "manager",
+            }
+            r = client.post("/approval-callback", json=req)
+            assert r.status_code == 200
+
+
 class TestApproverAllowlist:
     """H-3: fail-closed approver allowlist."""
 
@@ -250,7 +371,9 @@ class TestApproverAllowlist:
         from app.api import _check_approved_by
 
         with pytest.raises(HTTPException) as exc:
-            _check_approved_by("anyone@example.com", SimpleNamespace(valid_approvers=[]))
+            _check_approved_by(
+                "anyone@example.com", "manager", SimpleNamespace(valid_approvers=[])
+            )
         assert exc.value.status_code == 403
 
 

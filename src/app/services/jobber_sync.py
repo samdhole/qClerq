@@ -104,14 +104,11 @@ def _create_expense_sync(req: SyncRequest, access_token: str) -> tuple[str, bool
     """
     inv = req.invoice
 
-    # Idempotency check-before-create: return the existing expense instead of a
-    # duplicate (H-1). Best-effort — a query failure must NOT block the create, so we
-    # swallow it and fall through to create. This also contains the blast radius if
-    # the expenses search query/args are unsupported: degrade to "create" not "fail".
-    try:
-        existing_id = _find_existing_expense_id(req, access_token)
-    except Exception:
-        existing_id = None
+    # Idempotency check-before-create: return the existing expense instead of a duplicate.
+    # H-3 (fail-closed): if the search fails we cannot prove no duplicate exists, so we
+    # raise and let _run_sync mark sync_status['jobber']='failed' for human retry.
+    # Swallowing the error and creating anyway risks posting the same expense twice.
+    existing_id = _find_existing_expense_id(req, access_token)
     if existing_id is not None:
         return existing_id, False
 

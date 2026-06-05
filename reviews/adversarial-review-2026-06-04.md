@@ -1,3 +1,6 @@
+> [!WARNING]
+> **Stale / superseded.** This review reflects the repository state observed on 2026-06-04. It is superseded by `reviews/adversarial-review-2026-06-05.md`; several findings below were fixed before the current `master` review and should not be treated as current without re-verification.
+
 # Adversarial Code & Design Review
 
 **Date:** 2026-06-04

@@ -161,12 +161,19 @@ async def validate_invoice(
     return validation
 
 
-def _check_approved_by(approved_by: str, settings: Settings) -> None:
-    """Validate approved_by against the configured allowlist — fail closed (H-3).
+def _check_approved_by(
+    approved_by: str,
+    tier: str,
+    settings: Settings,
+) -> None:
+    """Validate approved_by against the allowlist AND the tier-specific identity — fail closed.
 
-    An EMPTY allowlist means no approver is authorised for write endpoints, so we refuse
-    rather than accept any non-empty string (the prior behaviour made the allowlist a
-    no-op under the default config, which is what let a spoofed 'auto-approved' through).
+    An EMPTY allowlist means no approver is authorised, so we refuse rather than accept any
+    non-empty string (the prior behaviour let a spoofed 'auto-approved' through).
+
+    Tier enforcement (H-2):
+    - cfo tier:     only settings.cfo_email may approve (manager cannot escalate down)
+    - manager tier: settings.manager_email OR settings.cfo_email may approve (CFO supersedes)
     """
     if not approved_by:
         raise HTTPException(status_code=422, detail="approved_by is required to sync")
@@ -180,10 +187,41 @@ def _check_approved_by(approved_by: str, settings: Settings) -> None:
             status_code=422,
             detail=f"approved_by '{approved_by}' is not in the configured approver allowlist",
         )
+    # Tier-specific gate: CFO invoices require the CFO identity.
+    # Manager-tier accepts manager or CFO (CFO authority supersedes manager).
+    if tier == "cfo" and approved_by != settings.cfo_email:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"CFO-tier invoice must be approved by {settings.cfo_email}; "
+                f"received '{approved_by}'"
+            ),
+        )
 
 
 async def _run_sync(req: SyncRequest, settings: Settings) -> SyncResult:
-    """Execute the three-target sync. Called by both approval_callback and sync_all."""
+    """Execute the three-target sync. Called by both approval_callback and sync_all.
+
+    H-1: re-validates the invoice deterministically before any write.  dedupe_result is
+    pinned to "none" so a legitimate retry (whose hash already landed in Sheets) is not
+    re-flagged as a duplicate — dedupe enforcement belongs at /validate time, not here.
+    This re-run covers math correctness and required-field checks only.
+    """
+    sync_validation = inv_validator.validate(
+        req.invoice,
+        settings.approval_tier_1_max,
+        settings.approval_tier_2_max,
+        dedupe_result="none",
+    )
+    if not sync_validation.is_clean:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Invoice failed server-side validation; sync blocked. "
+                f"Exceptions: {[e.model_dump() for e in sync_validation.exceptions]}"
+            ),
+        )
+
     from app.services import sheets_sync, quickbooks_sync, jobber_sync
 
     sheets_row_id: str | None = None
@@ -261,13 +299,15 @@ async def approval_callback(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SyncResult:
     """Receive n8n sendAndWait approval payload and trigger full sync (AC3.4)."""
-    _check_approved_by(req.approved_by, settings)
-    # C-1 / L-4: never trust the client-declared tier. Recompute from the invoice total.
+    # C-1 / L-4: recompute tier from the invoice total before the approver check so the
+    # tier-aware gate (H-2) uses the server-computed value, not the caller-declared one.
     computed_tier = compute_tier(
         req.invoice.total, settings.approval_tier_1_max, settings.approval_tier_2_max
     )
     if computed_tier == "auto":
         raise HTTPException(status_code=422, detail="auto-tier invoices must use /sync directly")
+    # H-2: verify the approver identity is authorised for the server-computed tier.
+    _check_approved_by(req.approved_by, computed_tier, settings)
     req.approval_tier = computed_tier  # audit the server-computed tier, not the caller's claim
     return await _run_sync(req, settings)
 

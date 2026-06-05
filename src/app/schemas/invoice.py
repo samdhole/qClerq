@@ -1,20 +1,33 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
+
+
+# H-4: Constrained numeric types used throughout financial models.
+# - allow_inf_nan=False on both models blocks NaN/Infinity from construction.
+# - Field constraints make negative/zero values structurally impossible rather than
+#   a validation exception discovered deep in execution (defense-in-depth).
+PositiveAmount = Annotated[float, Field(gt=0)]
+NonNegativeAmount = Annotated[float, Field(ge=0)]
+PositiveQuantity = Annotated[float, Field(gt=0)]
 
 
 class LineItem(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     description: str
-    quantity: float
-    unit_price: float
-    line_total: float
+    quantity: PositiveQuantity
+    unit_price: NonNegativeAmount
+    line_total: NonNegativeAmount
     category: Literal["materials", "labor", "software", "utilities", "rent", "unknown"]
 
 
 class InvoiceExtracted(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     invoice_number: str | None = None
     invoice_date: date | None = None
     due_date: date | None = None
@@ -22,11 +35,11 @@ class InvoiceExtracted(BaseModel):
     vendor_normalized: str
     po_number: str | None = None
     job_id: str | None = None
-    subtotal: float
-    tax: float
-    shipping: float
-    discount: float
-    total: float
+    subtotal: NonNegativeAmount
+    tax: NonNegativeAmount
+    shipping: NonNegativeAmount
+    discount: NonNegativeAmount
+    total: PositiveAmount
     currency: str = "USD"
     line_items: list[LineItem]
     payment_terms: str | None = None

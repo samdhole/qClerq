@@ -211,7 +211,11 @@ def test_sync_all_sheets_row_contains_invoice_fields(client):
                         invoice={
                             **make_sync_request()["invoice"],
                             "vendor_normalized": "Test Vendor Inc",
-                            "total": 234.56,  # auto-tier: /sync recomputes tier and only accepts auto (C-1)
+                            # H-4: total must be consistent with subtotal+tax.
+                            # Use subtotal=216.26 + tax=18.30 = 234.56 (auto-tier).
+                            "subtotal": 216.26,
+                            "tax": 18.30,
+                            "total": 234.56,
                             "invoice_number": "INV-999",
                             "invoice_date": "2026-03-15",
                         }

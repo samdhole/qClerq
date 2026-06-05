@@ -159,6 +159,81 @@ def test_invoice_currency_default():
     assert invoice.currency == "USD"
 
 
+# H-4: Financial field constraints
+class TestFinancialFieldConstraints:
+    """H-4: amount fields must be finite and non-negative; total must be positive."""
+
+    def test_negative_total_is_rejected(self):
+        """InvoiceExtracted rejects negative totals (H-4).
+
+        A negative invoice with subtotal=-100 and total=-100 previously validated
+        clean (arithmetic was consistent, -100 < tier_1_max). This must now be a
+        Pydantic ValidationError at construction time.
+        """
+        with pytest.raises(ValidationError):
+            InvoiceExtracted(**make_invoice(subtotal=-100.0, total=-100.0, tax=0.0))
+
+    def test_zero_total_is_rejected(self):
+        """total must be strictly positive — a zero-value invoice is invalid."""
+        with pytest.raises(ValidationError):
+            InvoiceExtracted(**make_invoice(subtotal=0.0, total=0.0, tax=0.0))
+
+    def test_negative_subtotal_is_rejected(self):
+        """subtotal must be non-negative."""
+        with pytest.raises(ValidationError):
+            InvoiceExtracted(**make_invoice(subtotal=-50.0, total=100.0, tax=150.0))
+
+    def test_negative_tax_is_rejected(self):
+        """tax must be non-negative."""
+        with pytest.raises(ValidationError):
+            InvoiceExtracted(**make_invoice(tax=-10.0))
+
+    def test_negative_shipping_is_rejected(self):
+        """shipping must be non-negative."""
+        with pytest.raises(ValidationError):
+            InvoiceExtracted(**make_invoice(shipping=-5.0))
+
+    def test_negative_discount_is_rejected(self):
+        """discount must be non-negative."""
+        with pytest.raises(ValidationError):
+            InvoiceExtracted(**make_invoice(discount=-20.0))
+
+    def test_nan_total_is_rejected(self):
+        """NaN in total must be rejected even if JSON transport allows it."""
+        with pytest.raises((ValidationError, ValueError)):
+            InvoiceExtracted(**make_invoice(total=float("nan")))
+
+    def test_infinite_total_is_rejected(self):
+        """Infinity in total must be rejected."""
+        with pytest.raises((ValidationError, ValueError)):
+            InvoiceExtracted(**make_invoice(total=float("inf")))
+
+    def test_valid_invoice_with_zero_tax_passes(self):
+        """An invoice with tax=0 and shipping=0 is valid as long as total > 0."""
+        inv = InvoiceExtracted(**make_invoice(subtotal=100.0, tax=0.0, shipping=0.0, total=100.0))
+        assert inv.total == 100.0
+
+    def test_line_item_negative_quantity_rejected(self):
+        """LineItem quantity must be positive."""
+        with pytest.raises(ValidationError):
+            LineItem(**make_line_item(quantity=-1.0))
+
+    def test_line_item_zero_quantity_rejected(self):
+        """LineItem quantity must be strictly positive."""
+        with pytest.raises(ValidationError):
+            LineItem(**make_line_item(quantity=0.0))
+
+    def test_line_item_negative_unit_price_rejected(self):
+        """LineItem unit_price must be non-negative."""
+        with pytest.raises(ValidationError):
+            LineItem(**make_line_item(unit_price=-10.0))
+
+    def test_line_item_negative_line_total_rejected(self):
+        """LineItem line_total must be non-negative."""
+        with pytest.raises(ValidationError):
+            LineItem(**make_line_item(line_total=-50.0))
+
+
 # ExceptionItem tests
 def test_exception_item_round_trip():
     """ExceptionItem round-trips correctly."""

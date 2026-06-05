@@ -206,124 +206,6 @@
     },
     {
       "parameters": {
-        "operation": "append",
-        "documentId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "1Vy7dvq18Jh6CSoNBkNk1YMjN9btXGIsLv5nQdO7i9sY"
-        },
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Exceptions"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "file_hash": "={{ $('Call /extract API').item.json.file_hash }}",
-            "file_name": "={{ $('Call /extract API').item.json.file_name }}",
-            "vendor_normalized": "={{ $('Call /extract API').item.json.vendor_normalized }}",
-            "invoice_number": "={{ $('Call /extract API').item.json.invoice_number }}",
-            "issue_type": "={{ ($json.exceptions && $json.exceptions[0]) ? $json.exceptions[0].type : ($('Call /extract API').item.json.duplicate_risk !== 'none' ? 'duplicate_risk' : 'low_confidence') }}",
-            "severity": "={{ ($json.exceptions && $json.exceptions[0]) ? $json.exceptions[0].severity : 'high' }}",
-            "message": "={{ ($json.exceptions || []).map(e => e.message).join('; ') || $('Call /extract API').item.json.warnings.join('; ') || 'Exception detected' }}",
-            "status": "open",
-            "created_at": "={{ new Date().toISOString() }}"
-          },
-          "schema": [
-            {
-              "id": "file_hash",
-              "displayName": "file_hash",
-              "required": false,
-              "defaultMatch": false,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "file_name",
-              "displayName": "file_name",
-              "required": false,
-              "defaultMatch": false,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "vendor_normalized",
-              "displayName": "vendor_normalized",
-              "required": false,
-              "defaultMatch": false,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "invoice_number",
-              "displayName": "invoice_number",
-              "required": false,
-              "defaultMatch": false,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "issue_type",
-              "displayName": "issue_type",
-              "required": false,
-              "defaultMatch": false,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "severity",
-              "displayName": "severity",
-              "required": false,
-              "defaultMatch": false,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "message",
-              "displayName": "message",
-              "required": false,
-              "defaultMatch": false,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "status",
-              "displayName": "status",
-              "required": false,
-              "defaultMatch": false,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "created_at",
-              "displayName": "created_at",
-              "required": false,
-              "defaultMatch": false,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "exception-sheet-001",
-      "name": "Write to Exceptions Sheet",
-      "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        3712,
-        912
-      ],
-      "typeVersion": 4.5,
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "2m62yvJBkKcVG8DS",
-          "name": "Google Sheets account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "operation": "sendAndWait",
         "sendTo": "enigman.kk+manager@gmail.com",
         "subject": "=[Action Required] Invoice - {{ $('Call /extract API').first().json.vendor_normalized || $('Call /extract API').first().json.vendor_raw }} / {{ $('Call /extract API').first().json.invoice_number }}",
@@ -915,7 +797,7 @@
       "main": [
         [
           {
-            "node": "Write to Exceptions Sheet",
+            "node": "Notify Exception Reviewer",
             "type": "main",
             "index": 0
           }
@@ -1076,17 +958,6 @@
         [
           {
             "node": "Check Approval Decision",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write to Exceptions Sheet": {
-      "main": [
-        [
-          {
-            "node": "Notify Exception Reviewer",
             "type": "main",
             "index": 0
           }
