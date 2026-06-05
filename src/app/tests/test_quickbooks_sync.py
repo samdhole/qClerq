@@ -273,3 +273,38 @@ async def test_sync_returns_skipped_status_on_idempotent_retry():
 
         assert result.qb_bill_id == "EXISTING-BILL-ASYNC"
         assert result.sync_status["quickbooks"] == "skipped"
+
+
+@pytest.mark.asyncio
+async def test_sync_logs_failure_reason(caplog):
+    """A QB sync failure is logged at ERROR with the exception (zero silent failures).
+
+    Regression for the e2e finding: a missing vendor (or any QB error) was swallowed
+    with no log, making production failures a black box.
+    """
+    import logging
+
+    sync_req = SyncRequest(
+        invoice=make_test_invoice(),
+        approved_by="manager@test.local",
+        approval_notes="Test",
+        approved_at=datetime.now(timezone.utc),
+        approval_tier="manager",
+    )
+    mock_settings = MagicMock()
+    mock_settings.qb_default_expense_account_id = "1"
+
+    with patch(
+        "app.services.quickbooks_sync._create_bill_sync",
+        side_effect=ValueError("Vendor 'Hicks Hardware' not found in QuickBooks"),
+    ):
+        from app.services.quickbooks_sync import sync
+
+        with caplog.at_level(logging.ERROR, logger="app.services.quickbooks_sync"):
+            result = await sync(sync_req, mock_settings)
+
+    assert result.sync_status["quickbooks"] == "failed"
+    assert result.qb_bill_id is None
+    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert errors, "expected an ERROR log when QB sync fails"
+    assert errors[0].exc_info is not None, "the failure reason (exception) must be captured"

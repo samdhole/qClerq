@@ -260,3 +260,23 @@ async def test_sync_non_401_error_fails_without_retry():
         assert result.sync_status["jobber"] == "failed"
         invalidate.assert_not_called()
         assert mock_create.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_sync_logs_failure_reason(caplog):
+    """A Jobber sync failure is logged at ERROR with the exception (zero silent failures)."""
+    import logging
+
+    with patch("app.services.jobber_auth.get_access_token", return_value="tok"), \
+         patch("app.services.jobber_sync._create_expense_sync",
+               side_effect=RuntimeError("Jobber userErrors: [{'message': 'bad'}]")):
+        from app.services.jobber_sync import sync
+
+        with caplog.at_level(logging.ERROR, logger="app.services.jobber_sync"):
+            result = await sync(_basic_sync_req(), MagicMock())
+
+    assert result.sync_status["jobber"] == "failed"
+    assert result.jobber_expense_id is None
+    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert errors, "expected an ERROR log when Jobber sync fails"
+    assert errors[0].exc_info is not None, "the failure reason (exception) must be captured"

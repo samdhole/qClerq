@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 import httpx
 
 from app.schemas.invoice import SyncRequest, SyncResult
 from app.services import jobber_auth
+
+logger = logging.getLogger(__name__)
 
 _JOBBER_GRAPHQL_URL = "https://api.getjobber.com/api/graphql"
 _JOBBER_API_VERSION = "2025-04-16"
@@ -175,6 +178,10 @@ async def sync(req: SyncRequest, settings: Any) -> SyncResult:
                 raise
         sync_status = {"jobber": "ok" if created else "skipped"}
     except Exception:
+        # Critical path — log the reason (auth, userErrors, schema) rather than swallow.
+        logger.exception(
+            "Jobber sync failed for invoice %s", req.invoice.invoice_number
+        )
         jobber_expense_id = None
         sync_status = {"jobber": "failed"}
 

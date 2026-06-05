@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from app.schemas.invoice import SyncRequest, SyncResult
+
+logger = logging.getLogger(__name__)
 
 # Stable identity tag written into the Bill PrivateNote so a retry can find the
 # already-created Bill instead of creating a duplicate (H-1 idempotency).
@@ -139,6 +142,11 @@ async def sync(req: SyncRequest, settings: Any) -> SyncResult:
         )
         sync_status = {"quickbooks": "ok" if created else "skipped"}
     except Exception:
+        # Critical path — never swallow silently (the failure reason, e.g. "vendor not
+        # found", is needed to diagnose production sync failures).
+        logger.exception(
+            "QuickBooks sync failed for invoice %s", req.invoice.invoice_number
+        )
         qb_bill_id = None
         sync_status = {"quickbooks": "failed"}
 
